@@ -10,18 +10,10 @@ mod tests {
     #[tokio::test]
     async fn it_works() {
         let crawler = Crawler::new()
-            .add_handler(
-                "a[href]",
-                Box::new(|el: ElementRef| {
-                    println!("{:?}", el.value());
-                }),
-            )
-            .add_handler(
-                "a[href]",
-                Box::new(|el: ElementRef| {
-                    println!("{:?}", el.value());
-                }),
-            );
+            .add_handler("*[href]".into(), |el: ElementRef| {
+                println!("{:?}", el.value().attr("href"));
+            })
+            .add_default_propagators();
         crawler.crawl("https://www.google.com").await.unwrap();
 
         assert_eq!(false, true);
