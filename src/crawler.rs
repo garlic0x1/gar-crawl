@@ -3,14 +3,11 @@ use std::collections::HashMap;
 use anyhow::Result;
 use reqwest::*;
 use scraper::*;
-use tokio::net::TcpStream;
 
 pub struct Crawler {
     handlers: HashMap<String, Vec<Box<dyn Fn(ElementRef)>>>,
     propagators: HashMap<String, Vec<Box<dyn Fn(ElementRef, u32)>>>,
     depth: u32,
-    workers: u32,
-    headers: Vec<(String, String)>,
     client: Client,
 }
 
@@ -20,8 +17,6 @@ impl Crawler {
             handlers: HashMap::new(),
             propagators: HashMap::new(),
             depth: 2,
-            workers: 4,
-            headers: vec![("User-Agent".into(), "garlic_crawler".into())],
             client: Client::new(),
         }
     }
@@ -58,7 +53,7 @@ impl Crawler {
         Ok(())
     }
 
-    pub async fn visit(&self, url: Url, depth: u32) -> Result<()> {
+    async fn visit(&self, url: Url, depth: u32) -> Result<()> {
         let res = self.client.get(url).send().await?;
         let text = res.text().await?;
         let doc = Html::parse_document(&text);
@@ -75,19 +70,17 @@ impl Crawler {
             }
         }
 
-        if depth == 0 {
-            return Ok(());
-        }
-
-        for propagator in self.propagators.iter() {
-            if let Ok(sel) = Selector::parse(propagator.0) {
-                for propagator in propagator.1 {
-                    for el in doc.select(&sel) {
-                        propagator(el, depth - 1);
+        if depth > 0 {
+            for propagator in self.propagators.iter() {
+                if let Ok(sel) = Selector::parse(propagator.0) {
+                    for propagator in propagator.1 {
+                        for el in doc.select(&sel) {
+                            propagator(el, depth - 1);
+                        }
                     }
+                } else {
+                    eprintln!("invalid selector {}", propagator.0);
                 }
-            } else {
-                eprintln!("invalid selector {}", propagator.0);
             }
         }
 
@@ -105,11 +98,10 @@ impl Crawler {
             }
         };
 
-        if let Some(prop) = self.propagators.get_mut("*[href]") {
-            prop.push(Box::new(href_prop));
-        } else {
-            self.propagators
-                .insert("*[href]".into(), vec![Box::new(href_prop)]);
+        let defaults = vec![href_prop];
+
+        for prop in defaults {
+            self = self.add_propagator("*[href]".into(), prop);
         }
 
         self
