@@ -95,13 +95,14 @@ impl Crawler {
                 if depth > 0 {
                     if let Ok(abs_url) = url.join(href) {
                         println!("absolute url: {abs_url}");
+
+                        // TODO
+                        // need to figure out how to make async work
+                        // TODO
+
                         crawler.visit(abs_url, depth - 1);
                     }
                 }
-
-                // TODO
-                // need to figure out how to get absolute url
-                // TODO
             }
         };
 
