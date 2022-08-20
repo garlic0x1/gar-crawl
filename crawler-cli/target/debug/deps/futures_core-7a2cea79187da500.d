@@ -1,0 +1,11 @@
+/home/owen/rust/crawler/crawler-cli/target/debug/deps/futures_core-7a2cea79187da500.rmeta: /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/lib.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/future.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/stream.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/mod.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/poll.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/__internal/mod.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/__internal/atomic_waker.rs
+
+/home/owen/rust/crawler/crawler-cli/target/debug/deps/futures_core-7a2cea79187da500.d: /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/lib.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/future.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/stream.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/mod.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/poll.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/__internal/mod.rs /home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/__internal/atomic_waker.rs
+
+/home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/lib.rs:
+/home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/future.rs:
+/home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/stream.rs:
+/home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/mod.rs:
+/home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/poll.rs:
+/home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/__internal/mod.rs:
+/home/owen/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.23/src/task/__internal/atomic_waker.rs:

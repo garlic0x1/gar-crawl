@@ -15,7 +15,10 @@ mod tests {
                 println!("{:?}", el.value().attr("href"));
             })
             .add_default_propagators();
-        crawler.crawl("https://www.google.com").await.unwrap();
+        crawler
+            .crawl("https://www.vim.org/about.php")
+            .await
+            .unwrap();
 
         assert_eq!(false, true);
     }

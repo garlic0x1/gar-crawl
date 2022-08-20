@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use anyhow::Result;
+use futures::*;
 use reqwest::*;
 use scraper::*;
 
@@ -16,8 +17,11 @@ impl Crawler {
         Self {
             handlers: HashMap::new(),
             propagators: HashMap::new(),
-            depth: 2,
-            client: Client::new(),
+            depth: 1,
+            client: Client::builder()
+                .connect_timeout(Duration::new(10, 0))
+                .build()
+                .unwrap(),
         }
     }
 
@@ -34,6 +38,7 @@ impl Crawler {
         self
     }
 
+    /// it is the responsibility of the propagator to decrement the depth
     pub fn add_propagator<F>(mut self, sel: String, closure: F) -> Self
     where
         F: Fn(&Self, ElementRef, Url, u32) + 'static,
@@ -75,7 +80,7 @@ impl Crawler {
                 if let Ok(sel) = Selector::parse(propagator.0) {
                     for propagator in propagator.1 {
                         for el in doc.select(&sel) {
-                            propagator(self, el, url.clone(), depth - 1);
+                            propagator(self, el, url.clone(), depth);
                         }
                     }
                 } else {
@@ -90,17 +95,21 @@ impl Crawler {
     pub fn add_default_propagators(mut self) -> Self {
         let href_prop = |crawler: &Self, el: ElementRef, url: Url, depth: u32| {
             if let Some(href) = el.value().attr("href") {
-                println!("propagating {href}");
+                println!("propagating {href}, depth: {depth}");
 
                 if depth > 0 {
                     if let Ok(abs_url) = url.join(href) {
                         println!("absolute url: {abs_url}");
 
-                        // TODO
-                        // need to figure out how to make async work
-                        // TODO
-
-                        crawler.visit(abs_url, depth - 1);
+                        match executor::block_on(crawler.visit(abs_url, depth - 1)) {
+                            Ok(()) => println!("crawled"),
+                            Err(err) => println!("not crawled {:?}", err),
+                        }
+                    } else {
+                        match executor::block_on(crawler.visit(url, depth - 1)) {
+                            Ok(()) => println!("crawled"),
+                            Err(err) => println!("not crawled {:?}", err),
+                        }
                     }
                 }
             }
