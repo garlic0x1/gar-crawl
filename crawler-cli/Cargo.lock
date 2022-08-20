@@ -146,6 +146,7 @@ dependencies = [
  "anyhow",
  "clap",
  "crawler",
+ "scraper",
  "tokio",
 ]
 

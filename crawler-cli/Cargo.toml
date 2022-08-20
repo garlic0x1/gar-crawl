@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 crawler = { path = "../" }
+scraper = "0.13"
 anyhow = "*"
 clap = { version = "*", features = ["derive"] }
-tokio = "*"
+tokio = { version = "1.20.1", features = ["full"] }

@@ -1,6 +1,5 @@
 pub mod crawler;
-// pub mod worker;
-// pub mod worker_pool;
+pub mod crawler_builder;
 
 #[cfg(test)]
 mod tests {
@@ -10,11 +9,13 @@ mod tests {
 
     #[tokio::test]
     async fn it_works() {
-        let crawler = Crawler::new()
+        let crawler = Crawler::builder()
             .add_handler("*[href]".into(), |el: ElementRef, url: Url| {
                 println!("{:?}", el.value().attr("href"));
             })
-            .add_default_propagators();
+            .add_default_propagators()
+            .build()
+            .unwrap();
         crawler
             .crawl("https://www.vim.org/about.php")
             .await

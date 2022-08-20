@@ -1,9 +1,8 @@
-use std::{collections::HashMap, time::Duration};
-
+use crate::crawler_builder::CrawlerBuilder;
 use anyhow::Result;
-use futures::*;
-use reqwest::*;
-use scraper::*;
+use reqwest::{Client, Url};
+use scraper::{ElementRef, Html, Selector};
+use std::collections::HashMap;
 
 pub struct Crawler {
     handlers: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url)>>>,
@@ -13,43 +12,17 @@ pub struct Crawler {
 }
 
 impl Crawler {
-    pub fn new() -> Self {
-        Self {
-            handlers: HashMap::new(),
-            propagators: HashMap::new(),
-            depth: 1,
-            client: Client::builder()
-                .connect_timeout(Duration::new(10, 0))
-                .build()
-                .unwrap(),
-        }
+    pub fn builder() -> CrawlerBuilder {
+        CrawlerBuilder::new()
     }
 
-    pub fn add_handler<F>(mut self, sel: String, closure: F) -> Self
-    where
-        F: Fn(ElementRef, Url) + 'static,
-    {
-        let closure: Box<dyn Fn(ElementRef, Url)> = Box::new(closure);
-        if let Some(handlers) = self.handlers.get_mut(&sel) {
-            handlers.push(closure)
-        } else {
-            self.handlers.insert(sel, vec![closure]);
-        }
-        self
-    }
-
-    /// it is the responsibility of the propagator to decrement the depth
-    pub fn add_propagator<F>(mut self, sel: String, closure: F) -> Self
-    where
-        F: Fn(&Self, ElementRef, Url, u32) + 'static,
-    {
-        let closure: Box<dyn Fn(&Self, ElementRef, Url, u32)> = Box::new(closure);
-        if let Some(propagators) = self.propagators.get_mut(&sel) {
-            propagators.push(closure)
-        } else {
-            self.propagators.insert(sel, vec![closure]);
-        }
-        self
+    pub fn from_builder(builder: CrawlerBuilder) -> Result<Self> {
+        Ok(Self {
+            handlers: builder.handlers,
+            propagators: builder.propagators,
+            depth: builder.depth,
+            client: builder.client_builder.build()?,
+        })
     }
 
     pub async fn crawl(&self, url: &str) -> Result<()> {
@@ -58,7 +31,7 @@ impl Crawler {
         Ok(())
     }
 
-    async fn visit(&self, url: Url, depth: u32) -> Result<()> {
+    pub async fn visit(&self, url: Url, depth: u32) -> Result<()> {
         let res = self.client.get(url.clone()).send().await?;
         let text = res.text().await?;
         let doc = Html::parse_document(&text);
@@ -75,6 +48,7 @@ impl Crawler {
             }
         }
 
+        // continue propagating while depth is positive nonzero
         if depth > 0 {
             for propagator in self.propagators.iter() {
                 if let Ok(sel) = Selector::parse(propagator.0) {
@@ -90,37 +64,5 @@ impl Crawler {
         }
 
         Ok(())
-    }
-
-    pub fn add_default_propagators(mut self) -> Self {
-        let href_prop = |crawler: &Self, el: ElementRef, url: Url, depth: u32| {
-            if let Some(href) = el.value().attr("href") {
-                println!("propagating {href}, depth: {depth}");
-
-                if depth > 0 {
-                    if let Ok(abs_url) = url.join(href) {
-                        println!("absolute url: {abs_url}");
-
-                        match executor::block_on(crawler.visit(abs_url, depth - 1)) {
-                            Ok(()) => println!("crawled"),
-                            Err(err) => println!("not crawled {:?}", err),
-                        }
-                    } else {
-                        match executor::block_on(crawler.visit(url, depth - 1)) {
-                            Ok(()) => println!("crawled"),
-                            Err(err) => println!("not crawled {:?}", err),
-                        }
-                    }
-                }
-            }
-        };
-
-        let defaults = vec![href_prop];
-
-        for prop in defaults {
-            self = self.add_propagator("*[href]".into(), prop);
-        }
-
-        self
     }
 }
