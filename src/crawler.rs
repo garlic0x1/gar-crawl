@@ -24,12 +24,13 @@ impl<'a> Crawler<'a> {
         }
     }
 
-    pub fn add_handler(&mut self, sel: &'a str, closure: Box<dyn Fn(ElementRef)>) {
+    pub fn add_handler(mut self, sel: &'a str, closure: Box<dyn Fn(ElementRef)>) -> Self {
         if let Some(handlers) = self.handlers.get_mut(sel) {
             handlers.push(closure)
         } else {
             self.handlers.insert(sel, vec![closure]);
         }
+        self
     }
 
     pub async fn crawl(&self, url: &str) -> Result<()> {

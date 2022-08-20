@@ -9,13 +9,19 @@ mod tests {
 
     #[tokio::test]
     async fn it_works() {
-        let mut crawler = Crawler::new();
-        crawler.add_handler(
-            "a[href]",
-            Box::new(|el: ElementRef| {
-                println!("{:?}", el.value());
-            }),
-        );
+        let crawler = Crawler::new()
+            .add_handler(
+                "a[href]",
+                Box::new(|el: ElementRef| {
+                    println!("{:?}", el.value());
+                }),
+            )
+            .add_handler(
+                "a[href]",
+                Box::new(|el: ElementRef| {
+                    println!("{:?}", el.value());
+                }),
+            );
         crawler.crawl("https://www.google.com").await.unwrap();
 
         assert_eq!(false, true);
