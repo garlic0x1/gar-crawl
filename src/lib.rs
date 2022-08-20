@@ -5,12 +5,13 @@ pub mod crawler;
 #[cfg(test)]
 mod tests {
     use super::crawler::*;
+    use reqwest::Url;
     use scraper::ElementRef;
 
     #[tokio::test]
     async fn it_works() {
         let crawler = Crawler::new()
-            .add_handler("*[href]".into(), |el: ElementRef| {
+            .add_handler("*[href]".into(), |el: ElementRef, url: Url| {
                 println!("{:?}", el.value().attr("href"));
             })
             .add_default_propagators();
