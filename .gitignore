@@ -1,2 +1,3 @@
 /target
+/crawler-cli/target
 /Cargo.lock
