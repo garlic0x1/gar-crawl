@@ -122,9 +122,7 @@ impl Crawler {
     ) -> Result<()> {
         let res = client.get(url.clone()).send().await?;
         let text = res.text().await?;
-        // let doc = Html::parse_document(&text);
-
-        sender.send((url, text, depth)).await.ok();
+        sender.send((url, text, depth)).await?;
         Ok(())
     }
 

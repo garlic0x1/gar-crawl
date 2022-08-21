@@ -29,30 +29,36 @@ impl CrawlerBuilder {
         }
     }
 
+    /// consume the Builder and produce a Crawler
     pub fn build(self) -> Result<Crawler> {
         Crawler::from_builder(self)
     }
 
+    /// dont crawl a url containing expr
     pub fn blacklist(mut self, expr: &str) -> Self {
         self.blacklist.push(expr.to_string());
         self
     }
 
+    /// only crawl urls containing expr
     pub fn whitelist(mut self, expr: &str) -> Self {
         self.whitelist.push(expr.to_string());
         self
     }
 
+    /// set the user agent
     pub fn user_agent(mut self, user_agent: String) -> Self {
         self.client_builder = self.client_builder.user_agent(user_agent);
         self
     }
 
+    /// set the crawl depth ( default 2 )
     pub fn depth(mut self, depth: u32) -> Self {
         self.depth = depth;
         self
     }
 
+    /// set the request timeout ( seconds u64, nanoseconds: u32 )
     pub fn timeout(mut self, seconds: u64, nanoseconds: u32) -> Self {
         self.client_builder = self
             .client_builder
@@ -95,6 +101,7 @@ impl CrawlerBuilder {
         self
     }
 
+    /// propagate on all href and src attributes
     pub fn add_default_propagators(mut self) -> Self {
         let href_prop = |el: ElementRef, url: Url| -> Option<Url> {
             if let Some(href) = el.value().attr("href") {
@@ -107,11 +114,19 @@ impl CrawlerBuilder {
             None
         };
 
-        let defaults = vec![href_prop];
+        let src_prop = |el: ElementRef, url: Url| -> Option<Url> {
+            if let Some(href) = el.value().attr("src") {
+                if let Ok(abs_url) = url.join(href) {
+                    return Some(abs_url);
+                } else {
+                    return Some(url);
+                }
+            }
+            None
+        };
 
-        for prop in defaults {
-            self = self.add_propagator("*[href]".into(), prop);
-        }
+        self = self.add_propagator("*[href]", href_prop);
+        self = self.add_propagator("*[src]", src_prop);
 
         self
     }
