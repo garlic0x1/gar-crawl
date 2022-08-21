@@ -1,12 +1,13 @@
 use crate::crawler_builder::CrawlerBuilder;
 use anyhow::Result;
+use futures::future::*;
 use reqwest::{Client, Url};
 use scraper::{ElementRef, Html, Selector};
 use std::collections::HashMap;
 
 pub struct Crawler {
     handlers: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url)>>>,
-    propagators: HashMap<String, Vec<Box<dyn Fn(&Self, ElementRef, Url, u32)>>>,
+    propagators: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url, u32) -> Option<(Url, u32)>>>>,
     depth: u32,
     client: Client,
 }
@@ -31,7 +32,8 @@ impl Crawler {
         Ok(())
     }
 
-    pub async fn visit(&self, url: Url, depth: u32) -> Result<()> {
+    #[async_recursion::async_recursion(?Send)]
+    async fn visit(&self, url: Url, depth: u32) -> Result<()> {
         let res = self.client.get(url.clone()).send().await?;
         let text = res.text().await?;
         let doc = Html::parse_document(&text);
@@ -53,9 +55,14 @@ impl Crawler {
             for propagator in self.propagators.iter() {
                 if let Ok(sel) = Selector::parse(propagator.0) {
                     for propagator in propagator.1 {
-                        for el in doc.select(&sel) {
-                            propagator(self, el, url.clone(), depth);
-                        }
+                        join_all(doc.select(&sel).filter_map(|el| {
+                            if let Some((url, d)) = propagator(el, url.clone(), depth) {
+                                Some(self.visit(url, d))
+                            } else {
+                                None
+                            }
+                        }))
+                        .await;
                     }
                 } else {
                     eprintln!("invalid selector {}", propagator.0);
