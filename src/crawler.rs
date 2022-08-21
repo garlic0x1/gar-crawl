@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 pub struct Crawler {
     handlers: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url)>>>,
-    propagators: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url, u32) -> Option<(Url, u32)>>>>,
+    propagators: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url) -> Option<Url>>>>,
     depth: u32,
     client: Client,
 }
@@ -56,8 +56,8 @@ impl Crawler {
                 if let Ok(sel) = Selector::parse(propagator.0) {
                     for propagator in propagator.1 {
                         join_all(doc.select(&sel).filter_map(|el| {
-                            if let Some((url, d)) = propagator(el, url.clone(), depth) {
-                                Some(self.visit(url, d))
+                            if let Some(url) = propagator(el, url.clone()) {
+                                Some(self.visit(url, depth - 1))
                             } else {
                                 None
                             }

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use crawler::crawler::*;
+use reqwest::Url;
 use scraper::ElementRef;
 
 #[derive(Parser)]
@@ -22,8 +23,14 @@ async fn main() -> Result<()> {
 
     Crawler::builder()
         .add_default_propagators()
-        .add_handler("*[href]", |el: ElementRef, _| {
-            println!("{:?}", el.value().attr("href"))
+        .add_handler("*[href]", |el: ElementRef, url: Url| {
+            if let Some(href) = el.value().attr("href") {
+                if let Ok(abs_url) = url.join(href) {
+                    println!("{}", abs_url.as_str());
+                } else {
+                    println!("{}", url.as_str());
+                }
+            }
         })
         .depth(args.depth)
         .build()?
