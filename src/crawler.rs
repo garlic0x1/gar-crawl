@@ -69,22 +69,48 @@ impl Crawler {
             self.do_handlers(&furl, &doc)?;
 
             if depth > 0 {
-                for propagator in self.propagators.iter_mut() {
-                    if let Ok(sel) = Selector::parse(propagator.0) {
-                        for propagator in propagator.1.iter_mut() {
-                            for el in doc.select(&sel) {
-                                if let Some(url) = propagator(el, furl.clone()) {
-                                    queue.push_back((url, depth - 1));
-                                }
-                            }
-                        }
-                    } else {
-                        bail!("invalid selector {}", propagator.0);
-                    }
-                }
+                self.do_propagators(&furl, &doc, depth, &mut queue)?;
             }
         }
 
+        Ok(())
+    }
+
+    fn do_propagators(
+        &mut self,
+        url: &Url,
+        doc: &Html,
+        depth: u32,
+        queue: &mut VecDeque<(Url, u32)>,
+    ) -> Result<()> {
+        for propagator in self.propagators.iter_mut() {
+            if let Ok(sel) = Selector::parse(propagator.0) {
+                for propagator in propagator.1.iter_mut() {
+                    for el in doc.select(&sel) {
+                        if let Some(url) = propagator(el, url.clone()) {
+                            queue.push_back((url, depth - 1));
+                        }
+                    }
+                }
+            } else {
+                bail!("invalid selector {}", propagator.0);
+            }
+        }
+        Ok(())
+    }
+
+    fn do_handlers(&mut self, url: &Url, doc: &Html) -> Result<()> {
+        for handlers in self.handlers.iter_mut() {
+            if let Ok(sel) = Selector::parse(handlers.0) {
+                for handler in handlers.1.iter_mut() {
+                    for el in doc.select(&sel) {
+                        handler(el, url.clone());
+                    }
+                }
+            } else {
+                bail!("invalid selector {}", handlers.0);
+            }
+        }
         Ok(())
     }
 
@@ -123,20 +149,5 @@ impl Crawler {
         }
 
         true
-    }
-
-    fn do_handlers(&mut self, url: &Url, doc: &Html) -> Result<()> {
-        for handlers in self.handlers.iter_mut() {
-            if let Ok(sel) = Selector::parse(handlers.0) {
-                for handler in handlers.1.iter_mut() {
-                    for el in doc.select(&sel) {
-                        handler(el, url.clone());
-                    }
-                }
-            } else {
-                bail!("invalid selector {}", handlers.0);
-            }
-        }
-        Ok(())
     }
 }
