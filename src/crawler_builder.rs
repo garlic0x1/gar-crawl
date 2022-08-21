@@ -1,15 +1,16 @@
 use super::crawler::*;
-use std::collections::HashMap;
-
 use anyhow::Result;
 use reqwest::{Client, ClientBuilder, Url};
 use scraper::ElementRef;
+use std::collections::HashMap;
 
 pub struct CrawlerBuilder {
     pub client_builder: ClientBuilder,
     pub handlers: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url)>>>,
     pub propagators: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url) -> Option<Url>>>>,
     pub depth: u32,
+    pub blacklist: Vec<String>,
+    pub whitelist: Vec<String>,
 }
 
 impl CrawlerBuilder {
@@ -19,11 +20,23 @@ impl CrawlerBuilder {
             handlers: HashMap::new(),
             propagators: HashMap::new(),
             depth: 2,
+            whitelist: vec![],
+            blacklist: vec![],
         }
     }
 
     pub fn build(self) -> Result<Crawler> {
         Crawler::from_builder(self)
+    }
+
+    pub fn blacklist(mut self, expr: &str) -> Self {
+        self.blacklist.push(expr.to_string());
+        self
+    }
+
+    pub fn whitelist(mut self, expr: &str) -> Self {
+        self.whitelist.push(expr.to_string());
+        self
     }
 
     pub fn user_agent(mut self, user_agent: String) -> Self {

@@ -1,6 +1,6 @@
 use crate::crawler_builder::CrawlerBuilder;
 use anyhow::Result;
-use futures::future::*;
+use futures::future::join_all;
 use reqwest::{Client, Url};
 use scraper::{ElementRef, Html, Selector};
 use std::collections::HashMap;
@@ -10,6 +10,8 @@ pub struct Crawler {
     propagators: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url) -> Option<Url>>>>,
     depth: u32,
     client: Client,
+    blacklist: Vec<String>,
+    whitelist: Vec<String>,
 }
 
 impl Crawler {
@@ -23,6 +25,8 @@ impl Crawler {
             propagators: builder.propagators,
             depth: builder.depth,
             client: builder.client_builder.build()?,
+            blacklist: builder.blacklist,
+            whitelist: builder.whitelist,
         })
     }
 
@@ -32,8 +36,34 @@ impl Crawler {
         Ok(())
     }
 
+    fn is_allowed(&self, url: &Url) -> bool {
+        if self.whitelist.len() > 0 {
+            let mut contains = false;
+            for expr in self.whitelist.iter() {
+                if url.to_string().contains(expr) {
+                    contains = true;
+                    break;
+                }
+            }
+            if !contains {
+                return false;
+            }
+        }
+
+        for expr in self.blacklist.iter() {
+            if url.to_string().contains(expr) {
+                return false;
+            }
+        }
+
+        true
+    }
+
     #[async_recursion::async_recursion(?Send)]
     async fn visit(&self, url: Url, depth: u32) -> Result<()> {
+        if !self.is_allowed(&url) {
+            return Ok(());
+        }
         let res = self.client.get(url.clone()).send().await?;
         let text = res.text().await?;
         let doc = Html::parse_document(&text);

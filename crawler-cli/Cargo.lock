@@ -148,7 +148,6 @@ dependencies = [
  "futures",
  "reqwest",
  "scraper",
- "tokio",
 ]
 
 [[package]]
