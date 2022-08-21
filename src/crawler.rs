@@ -1,13 +1,17 @@
 use crate::crawler_builder::CrawlerBuilder;
-use anyhow::Result;
-use futures::future::join_all;
+use anyhow::{bail, Result};
+use async_channel::*;
 use reqwest::{Client, Url};
 use scraper::{ElementRef, Html, Selector};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::marker::Send;
 
 pub struct Crawler {
-    handlers: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url)>>>,
-    propagators: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url) -> Option<Url>>>>,
+    handlers: HashMap<String, Vec<Box<dyn FnMut(ElementRef, Url) + Send + Sync + 'static>>>,
+    propagators: HashMap<
+        String,
+        Vec<Box<dyn FnMut(ElementRef, Url) -> Option<Url> + Send + Sync + 'static>>,
+    >,
     depth: u32,
     client: Client,
     blacklist: Vec<String>,
@@ -30,9 +34,71 @@ impl Crawler {
         })
     }
 
-    pub async fn crawl(&self, url: &str) -> Result<()> {
-        let uri = Url::parse(url)?;
-        self.visit(uri, self.depth).await?;
+    pub async fn crawl(&mut self, url: &str) -> Result<()> {
+        let uri: Url = Url::parse(url)?;
+        let client = self.client.clone();
+
+        let mut queue: VecDeque<(Url, u32)> = VecDeque::new();
+        let mut seen: HashSet<Url> = HashSet::new();
+        seen.insert(uri.clone());
+        queue.push_back((uri.clone(), self.depth));
+        let (s, r) = bounded(100);
+        let mut tasks = 0;
+
+        // Loop while the queue is not empty or tasks are fetching pages.
+        while queue.len() + tasks > 0 {
+            // Limit the number of concurrent tasks.
+            while tasks < s.capacity().unwrap() {
+                // Process URLs in the queue and fetch more pages.
+                match queue.pop_front() {
+                    None => break,
+                    Some(url) => {
+                        if self.is_allowed(&url.0) {
+                            tasks += 1;
+                            tokio::spawn(Self::fetch(url.0, url.1, client.clone(), s.clone()));
+                        }
+                    }
+                }
+            }
+
+            // Get a fetched web page.
+            let (furl, text, depth) = r.recv().await.unwrap();
+            let doc = Html::parse_document(&text);
+            tasks -= 1;
+
+            self.do_handlers(&furl, &doc)?;
+
+            if depth > 0 {
+                for propagator in self.propagators.iter_mut() {
+                    if let Ok(sel) = Selector::parse(propagator.0) {
+                        for propagator in propagator.1.iter_mut() {
+                            for el in doc.select(&sel) {
+                                if let Some(url) = propagator(el, furl.clone()) {
+                                    queue.push_back((url, depth - 1));
+                                }
+                            }
+                        }
+                    } else {
+                        bail!("invalid selector {}", propagator.0);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn fetch(
+        url: Url,
+        depth: u32,
+        client: Client,
+        sender: Sender<(Url, String, u32)>,
+    ) -> Result<()> {
+        let res = client.get(url.clone()).send().await?;
+        let text = res.text().await?;
+        // let doc = Html::parse_document(&text);
+
+        sender.send((url, text, depth)).await.ok();
         Ok(())
     }
 
@@ -59,47 +125,18 @@ impl Crawler {
         true
     }
 
-    #[async_recursion::async_recursion(?Send)]
-    async fn visit(&self, url: Url, depth: u32) -> Result<()> {
-        if !self.is_allowed(&url) {
-            return Ok(());
-        }
-        let res = self.client.get(url.clone()).send().await?;
-        let text = res.text().await?;
-        let doc = Html::parse_document(&text);
-
-        for handlers in self.handlers.iter() {
+    fn do_handlers(&mut self, url: &Url, doc: &Html) -> Result<()> {
+        for handlers in self.handlers.iter_mut() {
             if let Ok(sel) = Selector::parse(handlers.0) {
-                for handler in handlers.1 {
+                for handler in handlers.1.iter_mut() {
                     for el in doc.select(&sel) {
                         handler(el, url.clone());
                     }
                 }
             } else {
-                eprintln!("invalid selector {}", handlers.0);
+                bail!("invalid selector {}", handlers.0);
             }
         }
-
-        // continue propagating while depth is positive nonzero
-        if depth > 0 {
-            for propagator in self.propagators.iter() {
-                if let Ok(sel) = Selector::parse(propagator.0) {
-                    for propagator in propagator.1 {
-                        join_all(doc.select(&sel).filter_map(|el| {
-                            if let Some(url) = propagator(el, url.clone()) {
-                                Some(self.visit(url, depth - 1))
-                            } else {
-                                None
-                            }
-                        }))
-                        .await;
-                    }
-                } else {
-                    eprintln!("invalid selector {}", propagator.0);
-                }
-            }
-        }
-
         Ok(())
     }
 }

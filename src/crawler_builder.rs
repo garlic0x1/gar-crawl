@@ -3,11 +3,15 @@ use anyhow::Result;
 use reqwest::{Client, ClientBuilder, Url};
 use scraper::ElementRef;
 use std::collections::HashMap;
+use std::marker::Send;
 
 pub struct CrawlerBuilder {
     pub client_builder: ClientBuilder,
-    pub handlers: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url)>>>,
-    pub propagators: HashMap<String, Vec<Box<dyn Fn(ElementRef, Url) -> Option<Url>>>>,
+    pub handlers: HashMap<String, Vec<Box<dyn FnMut(ElementRef, Url) + Send + Sync + 'static>>>,
+    pub propagators: HashMap<
+        String,
+        Vec<Box<dyn FnMut(ElementRef, Url) -> Option<Url> + Send + Sync + 'static>>,
+    >,
     pub depth: u32,
     pub blacklist: Vec<String>,
     pub whitelist: Vec<String>,
@@ -58,13 +62,13 @@ impl CrawlerBuilder {
 
     /// add a handler
     /// selector: String
-    /// closure: Fn(ElementRef, Url)
+    /// closure: FnMut(ElementRef, Url)
     pub fn add_handler<F>(mut self, sel: &str, closure: F) -> Self
     where
-        F: Fn(ElementRef, Url) + 'static,
+        F: FnMut(ElementRef, Url) + Send + Sync + 'static,
     {
         let sel = sel.to_string();
-        let closure: Box<dyn Fn(ElementRef, Url)> = Box::new(closure);
+        let closure: Box<dyn FnMut(ElementRef, Url) + Send + Sync + 'static> = Box::new(closure);
         if let Some(handlers) = self.handlers.get_mut(&sel) {
             handlers.push(closure)
         } else {
@@ -75,13 +79,14 @@ impl CrawlerBuilder {
 
     /// add a propagator
     /// selector: String
-    /// closure: Fn(&Self, ElementRef, source: Url, depth: u32)
+    /// closure: FnMut(&Self, ElementRef, source: Url, depth: u32)
     pub fn add_propagator<F>(mut self, sel: &str, closure: F) -> Self
     where
-        F: Fn(ElementRef, Url) -> Option<Url> + 'static,
+        F: FnMut(ElementRef, Url) -> Option<Url> + 'static + Send + Sync,
     {
         let sel = sel.to_string();
-        let closure: Box<dyn Fn(ElementRef, Url) -> Option<Url>> = Box::new(closure);
+        let closure: Box<dyn FnMut(ElementRef, Url) -> Option<Url> + Send + Sync + 'static> =
+            Box::new(closure);
         if let Some(propagators) = self.propagators.get_mut(&sel) {
             propagators.push(closure)
         } else {
