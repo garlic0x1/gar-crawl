@@ -3,10 +3,10 @@ pub mod crawler_builder;
 
 #[cfg(test)]
 mod tests {
-    use super::crawler::*;
-    use async_channel::*;
-    use reqwest::Url;
-    use scraper::ElementRef;
+    // use super::crawler::*;
+    // use async_channel::*;
+    // use reqwest::Url;
+    // use scraper::ElementRef;
 
     #[tokio::test]
     async fn it_works() {
