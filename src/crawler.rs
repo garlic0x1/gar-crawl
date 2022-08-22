@@ -127,25 +127,47 @@ impl Crawler {
     }
 
     fn is_allowed(&self, url: &Url) -> bool {
-        if self.whitelist.len() > 0 {
-            let mut contains = false;
-            for expr in self.whitelist.iter() {
-                if url.to_string().contains(expr) {
-                    contains = true;
-                    break;
-                }
-            }
-            if !contains {
-                return false;
-            }
+        let surl = url.to_string();
+        if self
+            .whitelist
+            .iter()
+            .filter(|expr| surl.contains(expr.as_str()))
+            .take(1)
+            .count()
+            == 0
+            && self.whitelist.len() > 0
+        {
+            false
+        } else if self
+            .blacklist
+            .iter()
+            .filter(|expr| surl.contains(expr.as_str()))
+            .take(1)
+            .count()
+            != 0
+        {
+            false
+        } else {
+            true
         }
 
-        for expr in self.blacklist.iter() {
-            if url.to_string().contains(expr) {
-                return false;
-            }
-        }
+        // for expr in self.blacklist.iter() {
+        //     if url.to_string().contains(expr) {
+        //         return false;
+        //     }
+        // }
 
-        true
+        // if self.whitelist.len() > 0 {
+        //     let mut contains = false;
+        //     for expr in self.whitelist.iter() {
+        //         if url.to_string().contains(expr) {
+        //             contains = true;
+        //             break;
+        //         }
+        //     }
+        //     if !contains {
+        //         return false;
+        //     }
+        // }
     }
 }

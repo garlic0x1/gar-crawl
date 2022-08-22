@@ -25,9 +25,9 @@ async fn main() -> Result<()> {
 
     Crawler::builder()
         .add_default_propagators()
+        .whitelist(&args.url)
         .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.79 Safari/537.36".into())
         .add_handler("*[href]", move |el: ElementRef, url: Url| {
-            seen.insert("aaa".into());
             if let Some(href) = el.value().attr("href") {
                 if let Ok(abs_url) = url.join(href) {
                     out(abs_url.as_str(), &mut seen);
@@ -46,6 +46,6 @@ async fn main() -> Result<()> {
 
 fn out(message: &str, seen: &mut HashSet<String>) {
     if seen.insert(message.to_string()) {
-        println!("{message}")
+        //println!("{message}")
     }
 }
