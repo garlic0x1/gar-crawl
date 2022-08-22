@@ -20,7 +20,9 @@ pub struct Page {
 /// These are the events you can hook into
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub enum HandlerEvent {
+    /// Handle all found matches of a CSS selector
     OnSelector(String),
+    /// Handle every page loaded
     OnPage,
 }
 

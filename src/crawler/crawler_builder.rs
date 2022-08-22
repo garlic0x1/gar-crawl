@@ -1,13 +1,13 @@
 use super::crawler::*;
 use anyhow::Result;
-use reqwest::{Client, ClientBuilder, Url};
+use reqwest::{Client, Url};
 use scraper::ElementRef;
 use std::collections::HashMap;
 use std::marker::Send;
 
-/// Builder object for Crawler
+/// Builder object for Crawler, fields are left public
 pub struct CrawlerBuilder {
-    pub client_builder: ClientBuilder,
+    pub client_builder: reqwest::ClientBuilder,
     pub handlers: HashMap<HandlerEvent, Vec<HandlerFn>>,
     pub propagators: HashMap<HandlerEvent, Vec<PropagatorFn>>,
     pub depth: u32,
@@ -56,7 +56,7 @@ impl CrawlerBuilder {
         self
     }
 
-    /// set the request timeout ( seconds u64, nanoseconds: u32 )
+    /// set the request timeout
     pub fn timeout(mut self, seconds: u64, nanoseconds: u32) -> Self {
         self.client_builder = self
             .client_builder
@@ -64,6 +64,8 @@ impl CrawlerBuilder {
         self
     }
 
+    /// add a handler  
+    /// closure type: `FnMut(Page)`  
     pub fn on_page<F>(mut self, closure: F) -> Self
     where
         F: FnMut(&Page) + Send + Sync + 'static,
@@ -78,9 +80,8 @@ impl CrawlerBuilder {
         self
     }
 
-    /// add a handler
-    /// selector: String
-    /// closure: FnMut(ElementRef, Page)
+    /// add a handler  
+    /// closure type: `FnMut(ElementRef, Page)`  
     pub fn add_handler<F>(mut self, sel: &str, closure: F) -> Self
     where
         F: FnMut(ElementRef, &Page) + Send + Sync + 'static,
@@ -100,9 +101,8 @@ impl CrawlerBuilder {
         self
     }
 
-    /// add a propagator
-    /// selector: String
-    /// closure: FnMut(&Self, ElementRef, source: Url, depth: u32)
+    /// add a propagator  
+    /// closure type: `FnMut(ElementRef, &Page) -> Option<Url>`
     pub fn add_propagator<F>(mut self, sel: &str, closure: F) -> Self
     where
         F: FnMut(ElementRef, &Page) -> Option<Url> + 'static + Send + Sync,
