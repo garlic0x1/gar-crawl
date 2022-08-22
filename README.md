@@ -7,19 +7,20 @@ before building a crawler.
 
 # examples
 This example will crawl from https://example.org to a depth of 3, printing all links found  
-
 ```rust
 Crawler::builder()
     .add_default_propagators()
-    .whitelist("example.org")
+    .whitelist(&args.url)
     .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.79 Safari/537.36".into())
-    .add_handler("*[href]", move |el: ElementRef, url: Url| {
+    .add_handler("*[href]", move |el: ElementRef, page: &Page| {
         if let Some(href) = el.value().attr("href") {
-          println!("{href}");
+            println!("{href}");
         }
     })
-    .depth(3)
+    .depth(args.depth)
     .build()?
-    .crawl("https://example.org")
+    .crawl(&args.url)
     .await?;
-```
+```  
+
+See `examples/` for more examples
