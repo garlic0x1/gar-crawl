@@ -5,13 +5,11 @@ use scraper::ElementRef;
 use std::collections::HashMap;
 use std::marker::Send;
 
+/// Builder object for Crawler
 pub struct CrawlerBuilder {
     pub client_builder: ClientBuilder,
-    pub handlers: HashMap<String, Vec<Box<dyn FnMut(ElementRef, Url) + Send + Sync + 'static>>>,
-    pub propagators: HashMap<
-        String,
-        Vec<Box<dyn FnMut(ElementRef, Url) -> Option<Url> + Send + Sync + 'static>>,
-    >,
+    pub handlers: HashMap<HandlerEvent, Vec<HandlerFn>>,
+    pub propagators: HashMap<HandlerEvent, Vec<PropagatorFn>>,
     pub depth: u32,
     pub blacklist: Vec<String>,
     pub whitelist: Vec<String>,
@@ -66,19 +64,38 @@ impl CrawlerBuilder {
         self
     }
 
+    pub fn on_page<F>(mut self, closure: F) -> Self
+    where
+        F: FnMut(&Page) + Send + Sync + 'static,
+    {
+        let closure: Box<dyn FnMut(&Page) + Send + Sync + 'static> = Box::new(closure);
+        let wrapped = HandlerFn::OnPage(closure);
+        if let Some(handlers) = self.handlers.get_mut(&HandlerEvent::OnPage) {
+            handlers.push(wrapped)
+        } else {
+            self.handlers.insert(HandlerEvent::OnPage, vec![wrapped]);
+        }
+        self
+    }
+
     /// add a handler
     /// selector: String
-    /// closure: FnMut(ElementRef, Url)
+    /// closure: FnMut(ElementRef, Page)
     pub fn add_handler<F>(mut self, sel: &str, closure: F) -> Self
     where
-        F: FnMut(ElementRef, Url) + Send + Sync + 'static,
+        F: FnMut(ElementRef, &Page) + Send + Sync + 'static,
     {
         let sel = sel.to_string();
-        let closure: Box<dyn FnMut(ElementRef, Url) + Send + Sync + 'static> = Box::new(closure);
-        if let Some(handlers) = self.handlers.get_mut(&sel) {
-            handlers.push(closure)
+        let closure: Box<dyn FnMut(ElementRef, &Page) + Send + Sync + 'static> = Box::new(closure);
+        let wrapped = HandlerFn::OnSelector(closure);
+        if let Some(handlers) = self
+            .handlers
+            .get_mut(&HandlerEvent::OnSelector(sel.clone()))
+        {
+            handlers.push(wrapped)
         } else {
-            self.handlers.insert(sel, vec![closure]);
+            self.handlers
+                .insert(HandlerEvent::OnSelector(sel.clone()), vec![wrapped]);
         }
         self
     }
@@ -88,38 +105,43 @@ impl CrawlerBuilder {
     /// closure: FnMut(&Self, ElementRef, source: Url, depth: u32)
     pub fn add_propagator<F>(mut self, sel: &str, closure: F) -> Self
     where
-        F: FnMut(ElementRef, Url) -> Option<Url> + 'static + Send + Sync,
+        F: FnMut(ElementRef, &Page) -> Option<Url> + 'static + Send + Sync,
     {
         let sel = sel.to_string();
-        let closure: Box<dyn FnMut(ElementRef, Url) -> Option<Url> + Send + Sync + 'static> =
+        let closure: Box<dyn FnMut(ElementRef, &Page) -> Option<Url> + Send + Sync + 'static> =
             Box::new(closure);
-        if let Some(propagators) = self.propagators.get_mut(&sel) {
-            propagators.push(closure)
+        let wrapped = PropagatorFn::OnSelector(closure);
+        if let Some(propagators) = self
+            .propagators
+            .get_mut(&HandlerEvent::OnSelector(sel.clone()))
+        {
+            propagators.push(wrapped)
         } else {
-            self.propagators.insert(sel, vec![closure]);
+            self.propagators
+                .insert(HandlerEvent::OnSelector(sel), vec![wrapped]);
         }
         self
     }
 
     /// propagate on all href and src attributes
     pub fn add_default_propagators(mut self) -> Self {
-        let href_prop = |el: ElementRef, url: Url| -> Option<Url> {
+        let href_prop = |el: ElementRef, page: &Page| -> Option<Url> {
             if let Some(href) = el.value().attr("href") {
-                if let Ok(abs_url) = url.join(href) {
+                if let Ok(abs_url) = page.url.join(href) {
                     return Some(abs_url);
                 } else {
-                    return Some(url);
+                    return Some(page.url.clone());
                 }
             }
             None
         };
 
-        let src_prop = |el: ElementRef, url: Url| -> Option<Url> {
+        let src_prop = |el: ElementRef, page: &Page| -> Option<Url> {
             if let Some(href) = el.value().attr("src") {
-                if let Ok(abs_url) = url.join(href) {
+                if let Ok(abs_url) = page.url.join(href) {
                     return Some(abs_url);
                 } else {
-                    return Some(url);
+                    return Some(page.url.clone());
                 }
             }
             None
