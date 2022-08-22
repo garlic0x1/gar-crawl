@@ -46,6 +46,6 @@ async fn main() -> Result<()> {
 
 fn out(message: &str, seen: &mut HashSet<String>) {
     if seen.insert(message.to_string()) {
-        //println!("{message}")
+        println!("{message}")
     }
 }

@@ -1,5 +1,2 @@
 /target
-/old
-/crawler-cli/target
-/crawler-cli/Cargo.lock
 /Cargo.lock
