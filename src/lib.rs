@@ -2,26 +2,32 @@ pub mod crawler;
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::crawler::*;
-    use scraper::ElementRef;
 
     #[tokio::test]
     async fn crawl_test() {
-        let mut c = 0;
-        Crawler::builder()
+        let mut seen = HashSet::new();
+        let errs = Crawler::builder()
             .add_default_propagators()
             .whitelist("qiwi-button")
             .user_agent("Mozilla/5.0 (X11; Linux x86_64)...".into())
-            .add_handler("*[href]", |_el: ElementRef, _page: &Page| {
-                c += 1;
+            .on_page(|page: &Page| {
+                let ustr = page.url.to_string();
+                if ustr.ends_with(".php") {
+                    seen.insert(ustr);
+                }
             })
-            .depth(1)
+            .depth(3)
             .build()
             .unwrap()
-            .crawl("http://plugins.svn.wordpress.org/qiwi-button")
+            .crawl("http://plugins.svn.wordpress.org/qiwi-button/")
             .await
             .unwrap();
 
-        assert_eq!(c, 5);
+        println!("{:?}", seen);
+        println!("{:?}", errs);
+        assert_eq!(seen.len(), 18);
     }
 }

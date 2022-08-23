@@ -70,13 +70,17 @@ impl<'a> Crawler<'a> {
     }
 
     /// Start crawling at the provided URL
-    pub async fn crawl(&mut self, start_url: &str) -> Result<()> {
+    /// NOTE: "https://example.com/path" and "https://example.com/path/" may behave differently
+    /// see https://docs.rs/reqwest/0.10.8/reqwest/struct.Url.html#method.join
+    pub async fn crawl(&mut self, start_url: &str) -> Result<Vec<anyhow::Error>> {
         let uri: Url = Url::parse(start_url)?;
         let client = Arc::new(self.client.clone());
-
-        let mut queue: VecDeque<(Url, u32)> = VecDeque::new();
+        let mut errors = vec![];
         let mut seen: HashSet<Url> = HashSet::new();
         seen.insert(uri.clone());
+
+        // set up async
+        let mut queue: VecDeque<(Url, u32)> = VecDeque::new();
         queue.push_back((uri.clone(), self.depth));
         let (s, r) = bounded(100);
         let mut tasks = 0;
@@ -89,27 +93,24 @@ impl<'a> Crawler<'a> {
                 match queue.pop_front() {
                     None => break,
                     Some(url) => {
-                        if self.is_allowed(&url.0) {
-                            tasks += 1;
-                            tokio::spawn(Self::fetch(url.0, url.1, client.clone(), s.clone()));
-                        } else {
-                            tasks += 1;
-                            s.send(Err(anyhow!("invalid"))).await.unwrap();
-                        }
+                        tasks += 1;
+                        tokio::spawn(Self::fetch(url.0, url.1, client.clone(), s.clone()));
                     }
                 }
             }
 
             // Get a fetched web page.
             let fetched = r.recv().await.unwrap();
-            if fetched.is_err() {
-                tasks -= 1;
+            tasks -= 1;
+
+            if let Err(fetch_err) = fetched {
+                errors.push(fetch_err);
                 continue;
             }
+
             let (url, text, depth) = fetched.unwrap();
             let doc = Html::parse_document(&text);
             let page = Page { url, text, doc };
-            tasks -= 1;
 
             self.do_handlers(&page)?;
 
@@ -118,7 +119,7 @@ impl<'a> Crawler<'a> {
             }
         }
 
-        Ok(())
+        Ok(errors)
     }
 
     fn do_propagators(
@@ -127,16 +128,23 @@ impl<'a> Crawler<'a> {
         depth: u32,
         queue: &mut VecDeque<(Url, u32)>,
     ) -> Result<()> {
-        for propagator in self.propagators.iter_mut() {
+        let props = &mut self.propagators;
+        for propagator in props.iter_mut() {
             match propagator.0 {
                 HandlerEvent::OnSelector(sel) => {
-                    if let Ok(sel) = Selector::parse(sel) {
+                    if let Ok(sel) = Selector::parse(&sel) {
                         for propagator in propagator.1.iter_mut() {
                             match propagator {
                                 PropagatorFn::OnSelector(prop) => {
                                     for el in page.doc.select(&sel) {
                                         if let Some(url) = prop(el, page) {
-                                            queue.push_back((url, depth - 1));
+                                            if Self::is_allowed(
+                                                &url,
+                                                &self.whitelist,
+                                                &self.blacklist,
+                                            ) {
+                                                queue.push_back((url, depth - 1));
+                                            }
                                         }
                                     }
                                 }
@@ -199,20 +207,18 @@ impl<'a> Crawler<'a> {
     }
 
     /// match whitelist/blacklist rules
-    fn is_allowed(&self, url: &Url) -> bool {
+    fn is_allowed(url: &Url, wl: &Vec<String>, bl: &Vec<String>) -> bool {
         let surl = url.to_string();
-        if self
-            .whitelist
+        if wl
             .iter()
             .filter(|expr| surl.contains(expr.as_str()))
             .take(1)
             .count()
             == 0
-            && self.whitelist.len() > 0
+            && wl.len() > 0
         {
             false
-        } else if self
-            .blacklist
+        } else if bl
             .iter()
             .filter(|expr| surl.contains(expr.as_str()))
             .take(1)

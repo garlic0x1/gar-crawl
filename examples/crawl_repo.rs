@@ -8,7 +8,7 @@ async fn main() -> Result<()> {
 
     let mut seen: HashSet<String> = HashSet::new();
 
-    Crawler::builder()
+    let errs = Crawler::builder()
         .add_default_propagators()
         .whitelist(repo_url)
         .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.79 Safari/537.36".into())
@@ -23,6 +23,7 @@ async fn main() -> Result<()> {
         .await?;
 
     println!("{}", seen.len());
+    println!("errs: {} \n{:?}", errs.len(), errs);
 
     Ok(())
 }
