@@ -8,15 +8,21 @@ mod tests {
 
     #[tokio::test]
     async fn crawl_test() {
-        let mut seen = HashSet::new();
+        let mut visited = HashSet::new();
+        let mut links = HashSet::new();
         let errs = Crawler::builder()
             .add_default_propagators()
             .whitelist("qiwi-button")
             .user_agent("Mozilla/5.0 (X11; Linux x86_64)...")
+            .add_handler("*[href]", |args| {
+                if let Some(link) = args.element.unwrap().value().attr("href") {
+                    links.insert(link.to_string());
+                }
+            })
             .on_page(|args: &HandlerArgs| {
                 let ustr = args.page.url.to_string();
                 if ustr.ends_with(".php") {
-                    seen.insert(ustr);
+                    visited.insert(ustr);
                 }
             })
             .depth(3)
@@ -26,8 +32,10 @@ mod tests {
             .await
             .unwrap();
 
-        println!("{:?}", seen);
+        println!("{:?}", visited);
+        println!("{:?}", links);
         println!("{:?}", errs);
-        assert_eq!(seen.len(), 18);
+        assert_eq!(visited.len(), 18);
+        assert_eq!(links.len(), 61);
     }
 }
