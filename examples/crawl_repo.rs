@@ -12,9 +12,9 @@ async fn main() -> Result<()> {
         .add_default_propagators()
         .whitelist(repo_url)
         .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.79 Safari/537.36".into())
-        .on_page(|page: &Page| {
-            if page.url.to_string().contains(".php") {
-                out(&page.url.to_string(),  &mut seen);
+        .on_page(|args: &HandlerArgs| {
+            if args.page.url.to_string().contains(".php") {
+                out(&args.page.url.to_string(),  &mut seen);
             }
         })
         .depth(1)

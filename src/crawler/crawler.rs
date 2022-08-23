@@ -9,6 +9,14 @@ use std::sync::Arc;
 
 /// Data to pass to the user as closure arguments
 #[derive(Clone, Eq, PartialEq)]
+pub struct HandlerArgs<'a> {
+    /// current page
+    pub page: &'a Page,
+    /// CSS element if available
+    pub element: Option<ElementRef<'a>>,
+}
+
+#[derive(Clone, Eq, PartialEq)]
 pub struct Page {
     /// Url of the current location
     pub url: Url,
@@ -29,14 +37,14 @@ pub enum HandlerEvent {
 
 /// Closure types for handlers
 pub enum HandlerFn<'a> {
-    OnSelector(Box<dyn FnMut(ElementRef, &Page) + Send + Sync + 'a>),
-    OnPage(Box<dyn FnMut(&Page) + Send + Sync + 'a>),
+    OnSelector(Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a>),
+    OnPage(Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a>),
 }
 
 /// Closure types for propagators
 pub enum PropagatorFn<'a> {
-    OnSelector(Box<dyn FnMut(ElementRef, &Page) -> Option<Url> + Send + Sync + 'a>),
-    OnPage(Box<dyn FnMut(&Page) -> Option<Url> + Send + Sync + 'a>),
+    OnSelector(Box<dyn FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a>),
+    OnPage(Box<dyn FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a>),
 }
 
 /// A crawler object, use builder() to build with CrawlerBuilder
@@ -137,7 +145,11 @@ impl<'a> Crawler<'a> {
                             match propagator {
                                 PropagatorFn::OnSelector(prop) => {
                                     for el in page.doc.select(&sel) {
-                                        if let Some(url) = prop(el, page) {
+                                        let args = HandlerArgs {
+                                            page,
+                                            element: Some(el),
+                                        };
+                                        if let Some(url) = prop(&args) {
                                             if Self::is_allowed(
                                                 &url,
                                                 &self.whitelist,
@@ -169,7 +181,11 @@ impl<'a> Crawler<'a> {
                         for handler in handlers.1.iter_mut() {
                             if let HandlerFn::OnSelector(handler) = handler {
                                 for el in page.doc.select(&sel) {
-                                    handler(el, page);
+                                    let args = HandlerArgs {
+                                        page,
+                                        element: Some(el),
+                                    };
+                                    handler(&args);
                                 }
                             }
                         }
@@ -180,7 +196,11 @@ impl<'a> Crawler<'a> {
                 HandlerEvent::OnPage => {
                     handlers.1.iter_mut().for_each(|h| {
                         if let HandlerFn::OnPage(handler) = h {
-                            handler(page);
+                            let args = HandlerArgs {
+                                page,
+                                element: None,
+                            };
+                            handler(&args);
                         }
                     });
                 }

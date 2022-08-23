@@ -1,7 +1,6 @@
 use super::crawler::*;
 use anyhow::Result;
 use reqwest::{Client, Url};
-use scraper::ElementRef;
 use std::collections::HashMap;
 use std::marker::Send;
 
@@ -45,8 +44,8 @@ impl<'a> CrawlerBuilder<'a> {
     }
 
     /// set the user agent
-    pub fn user_agent(mut self, user_agent: String) -> Self {
-        self.client_builder = self.client_builder.user_agent(user_agent);
+    pub fn user_agent(mut self, user_agent: &'a str) -> Self {
+        self.client_builder = self.client_builder.user_agent(user_agent.to_string());
         self
     }
 
@@ -65,12 +64,12 @@ impl<'a> CrawlerBuilder<'a> {
     }
 
     /// add a handler  
-    /// closure type: `FnMut(&Page)`  
+    /// closure type: `FnMut(&HandlerArgs)`  
     pub fn on_page<F>(mut self, closure: F) -> Self
     where
-        F: FnMut(&Page) + Send + Sync + 'a,
+        F: FnMut(&HandlerArgs) + Send + Sync + 'a,
     {
-        let closure: Box<dyn FnMut(&Page) + Send + Sync + 'a> = Box::new(closure);
+        let closure: Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a> = Box::new(closure);
         let wrapped = HandlerFn::OnPage(closure);
         if let Some(handlers) = self.handlers.get_mut(&HandlerEvent::OnPage) {
             handlers.push(wrapped)
@@ -81,13 +80,13 @@ impl<'a> CrawlerBuilder<'a> {
     }
 
     /// add a handler  
-    /// closure type: `FnMut(ElementRef, &Page)`  
+    /// closure type: `FnMut(&HandlerArgs)`  
     pub fn add_handler<F>(mut self, sel: &str, closure: F) -> Self
     where
-        F: FnMut(ElementRef, &Page) + Send + Sync + 'a,
+        F: FnMut(&HandlerArgs) + Send + Sync + 'a,
     {
         let sel = sel.to_string();
-        let closure: Box<dyn FnMut(ElementRef, &Page) + Send + Sync + 'a> = Box::new(closure);
+        let closure: Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a> = Box::new(closure);
         let wrapped = HandlerFn::OnSelector(closure);
         if let Some(handlers) = self
             .handlers
@@ -102,13 +101,13 @@ impl<'a> CrawlerBuilder<'a> {
     }
 
     /// add a propagator  
-    /// closure type: `FnMut(ElementRef, &Page) -> Option<Url>`
+    /// closure type: `FnMut(&HandlerArgs) -> Option<Url>`
     pub fn add_propagator<F>(mut self, sel: &str, closure: F) -> Self
     where
-        F: FnMut(ElementRef, &Page) -> Option<Url> + 'a + Send + Sync,
+        F: FnMut(&HandlerArgs) -> Option<Url> + 'a + Send + Sync,
     {
         let sel = sel.to_string();
-        let closure: Box<dyn FnMut(ElementRef, &Page) -> Option<Url> + Send + Sync + 'a> =
+        let closure: Box<dyn FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a> =
             Box::new(closure);
         let wrapped = PropagatorFn::OnSelector(closure);
         if let Some(propagators) = self
@@ -125,11 +124,11 @@ impl<'a> CrawlerBuilder<'a> {
 
     /// propagate on all href and src attributes
     pub fn add_default_propagators(mut self) -> Self {
-        let href_prop = |el: ElementRef, page: &Page| -> Option<Url> {
-            if let Some(href) = el.value().attr("href") {
+        let href_prop = |args: &HandlerArgs| -> Option<Url> {
+            if let Some(href) = args.element.unwrap().value().attr("href") {
                 if let Ok(url) = Url::parse(href) {
                     Some(url)
-                } else if let Ok(url) = page.url.join(href) {
+                } else if let Ok(url) = args.page.url.join(href) {
                     Some(url)
                 } else {
                     None
@@ -139,11 +138,11 @@ impl<'a> CrawlerBuilder<'a> {
             }
         };
 
-        let src_prop = |el: ElementRef, page: &Page| -> Option<Url> {
-            if let Some(href) = el.value().attr("src") {
+        let src_prop = |args: &HandlerArgs| -> Option<Url> {
+            if let Some(href) = args.element.unwrap().value().attr("src") {
                 if let Ok(url) = Url::parse(href) {
                     Some(url)
-                } else if let Ok(url) = page.url.join(href) {
+                } else if let Ok(url) = args.page.url.join(href) {
                     Some(url)
                 } else {
                     None
