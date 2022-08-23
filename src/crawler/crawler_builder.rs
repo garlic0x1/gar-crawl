@@ -1,4 +1,5 @@
 use super::crawler::*;
+use super::handler::*;
 use anyhow::Result;
 use reqwest::{Client, Url};
 use std::collections::HashMap;

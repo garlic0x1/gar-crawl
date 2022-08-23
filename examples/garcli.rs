@@ -1,7 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
 use gar_crawl::crawler::*;
-use scraper::ElementRef;
 use std::collections::HashSet;
 
 #[derive(Parser)]

@@ -1,51 +1,11 @@
+use super::handler::*;
 use crate::crawler::CrawlerBuilder;
 use anyhow::{anyhow, bail, Result};
 use async_channel::*;
 use reqwest::{Client, Url};
-use scraper::{ElementRef, Html, Selector};
+use scraper::{Html, Selector};
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::marker::Send;
 use std::sync::Arc;
-
-/// Data to pass to the user as closure arguments
-#[derive(Clone, Eq, PartialEq)]
-pub struct HandlerArgs<'a> {
-    /// current page
-    pub page: &'a Page,
-    /// CSS element if available
-    pub element: Option<ElementRef<'a>>,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct Page {
-    /// Url of the current location
-    pub url: Url,
-    /// Response body as a string
-    pub text: String,
-    /// Parsed HTML document
-    pub doc: Html,
-}
-
-/// These are the events you can hook into
-#[derive(Clone, Eq, PartialEq, Hash)]
-pub enum HandlerEvent {
-    /// Handle all found matches of a CSS selector
-    OnSelector(String),
-    /// Handle every page loaded
-    OnPage,
-}
-
-/// Closure types for handlers
-pub enum HandlerFn<'a> {
-    OnSelector(Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a>),
-    OnPage(Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a>),
-}
-
-/// Closure types for propagators
-pub enum PropagatorFn<'a> {
-    OnSelector(Box<dyn FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a>),
-    OnPage(Box<dyn FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a>),
-}
 
 /// A crawler object, use builder() to build with CrawlerBuilder
 pub struct Crawler<'a> {
