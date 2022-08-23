@@ -94,7 +94,7 @@ impl<'a> Crawler<'a> {
                             tokio::spawn(Self::fetch(url.0, url.1, client.clone(), s.clone()));
                         } else {
                             tasks += 1;
-                            s.send(Err(anyhow!(""))).await.unwrap();
+                            s.send(Err(anyhow!("invalid"))).await.unwrap();
                         }
                     }
                 }

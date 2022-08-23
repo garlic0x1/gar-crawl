@@ -127,14 +127,12 @@ impl<'a> CrawlerBuilder<'a> {
     pub fn add_default_propagators(mut self) -> Self {
         let href_prop = |el: ElementRef, page: &Page| -> Option<Url> {
             if let Some(href) = el.value().attr("href") {
-                if let Ok(abs_url) = page.url.join(href) {
-                    Some(abs_url)
+                if let Ok(url) = Url::parse(href) {
+                    Some(url)
+                } else if let Ok(url) = page.url.join(href) {
+                    Some(url)
                 } else {
-                    if let Ok(url) = Url::parse(href) {
-                        Some(url)
-                    } else {
-                        None
-                    }
+                    None
                 }
             } else {
                 None
@@ -143,14 +141,12 @@ impl<'a> CrawlerBuilder<'a> {
 
         let src_prop = |el: ElementRef, page: &Page| -> Option<Url> {
             if let Some(href) = el.value().attr("src") {
-                if let Ok(abs_url) = page.url.join(href) {
-                    Some(abs_url)
+                if let Ok(url) = Url::parse(href) {
+                    Some(url)
+                } else if let Ok(url) = page.url.join(href) {
+                    Some(url)
                 } else {
-                    if let Ok(url) = Url::parse(href) {
-                        Some(url)
-                    } else {
-                        None
-                    }
+                    None
                 }
             } else {
                 None
