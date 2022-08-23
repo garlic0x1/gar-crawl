@@ -6,16 +6,16 @@ use std::collections::HashMap;
 use std::marker::Send;
 
 /// Builder object for Crawler, fields are left public
-pub struct CrawlerBuilder {
+pub struct CrawlerBuilder<'a> {
     pub client_builder: reqwest::ClientBuilder,
-    pub handlers: HashMap<HandlerEvent, Vec<HandlerFn>>,
-    pub propagators: HashMap<HandlerEvent, Vec<PropagatorFn>>,
+    pub handlers: HashMap<HandlerEvent, Vec<HandlerFn<'a>>>,
+    pub propagators: HashMap<HandlerEvent, Vec<PropagatorFn<'a>>>,
     pub depth: u32,
     pub blacklist: Vec<String>,
     pub whitelist: Vec<String>,
 }
 
-impl CrawlerBuilder {
+impl<'a> CrawlerBuilder<'a> {
     pub fn new() -> Self {
         Self {
             client_builder: Client::builder(),
@@ -28,7 +28,7 @@ impl CrawlerBuilder {
     }
 
     /// consume the Builder and produce a Crawler
-    pub fn build(self) -> Result<Crawler> {
+    pub fn build(self) -> Result<Crawler<'a>> {
         Crawler::from_builder(self)
     }
 
@@ -68,9 +68,9 @@ impl CrawlerBuilder {
     /// closure type: `FnMut(Page)`  
     pub fn on_page<F>(mut self, closure: F) -> Self
     where
-        F: FnMut(&Page) + Send + Sync + 'static,
+        F: FnMut(&Page) + Send + Sync + 'a,
     {
-        let closure: Box<dyn FnMut(&Page) + Send + Sync + 'static> = Box::new(closure);
+        let closure: Box<dyn FnMut(&Page) + Send + Sync + 'a> = Box::new(closure);
         let wrapped = HandlerFn::OnPage(closure);
         if let Some(handlers) = self.handlers.get_mut(&HandlerEvent::OnPage) {
             handlers.push(wrapped)
@@ -84,10 +84,10 @@ impl CrawlerBuilder {
     /// closure type: `FnMut(ElementRef, Page)`  
     pub fn add_handler<F>(mut self, sel: &str, closure: F) -> Self
     where
-        F: FnMut(ElementRef, &Page) + Send + Sync + 'static,
+        F: FnMut(ElementRef, &Page) + Send + Sync + 'a,
     {
         let sel = sel.to_string();
-        let closure: Box<dyn FnMut(ElementRef, &Page) + Send + Sync + 'static> = Box::new(closure);
+        let closure: Box<dyn FnMut(ElementRef, &Page) + Send + Sync + 'a> = Box::new(closure);
         let wrapped = HandlerFn::OnSelector(closure);
         if let Some(handlers) = self
             .handlers
@@ -105,10 +105,10 @@ impl CrawlerBuilder {
     /// closure type: `FnMut(ElementRef, &Page) -> Option<Url>`
     pub fn add_propagator<F>(mut self, sel: &str, closure: F) -> Self
     where
-        F: FnMut(ElementRef, &Page) -> Option<Url> + 'static + Send + Sync,
+        F: FnMut(ElementRef, &Page) -> Option<Url> + 'a + Send + Sync,
     {
         let sel = sel.to_string();
-        let closure: Box<dyn FnMut(ElementRef, &Page) -> Option<Url> + Send + Sync + 'static> =
+        let closure: Box<dyn FnMut(ElementRef, &Page) -> Option<Url> + Send + Sync + 'a> =
             Box::new(closure);
         let wrapped = PropagatorFn::OnSelector(closure);
         if let Some(propagators) = self

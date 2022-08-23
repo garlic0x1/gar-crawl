@@ -1,5 +1,5 @@
 use crate::crawler::CrawlerBuilder;
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use async_channel::*;
 use reqwest::{Client, Url};
 use scraper::{ElementRef, Html, Selector};
@@ -27,37 +27,37 @@ pub enum HandlerEvent {
 }
 
 /// Closure types for handlers
-pub enum HandlerFn {
-    OnSelector(Box<dyn FnMut(ElementRef, &Page) + Send + Sync + 'static>),
-    OnPage(Box<dyn FnMut(&Page) + Send + Sync + 'static>),
+pub enum HandlerFn<'a> {
+    OnSelector(Box<dyn FnMut(ElementRef, &Page) + Send + Sync + 'a>),
+    OnPage(Box<dyn FnMut(&Page) + Send + Sync + 'a>),
 }
 
 /// Closure types for propagators
-pub enum PropagatorFn {
-    OnSelector(Box<dyn FnMut(ElementRef, &Page) -> Option<Url> + Send + Sync + 'static>),
-    OnPage(Box<dyn FnMut(&Page) -> Option<Url> + Send + Sync + 'static>),
+pub enum PropagatorFn<'a> {
+    OnSelector(Box<dyn FnMut(ElementRef, &Page) -> Option<Url> + Send + Sync + 'a>),
+    OnPage(Box<dyn FnMut(&Page) -> Option<Url> + Send + Sync + 'a>),
 }
 
 /// A crawler object, use builder() to build with CrawlerBuilder
-pub struct Crawler {
-    handlers: HashMap<HandlerEvent, Vec<HandlerFn>>,
-    propagators: HashMap<HandlerEvent, Vec<PropagatorFn>>,
+pub struct Crawler<'a> {
+    handlers: HashMap<HandlerEvent, Vec<HandlerFn<'a>>>,
+    propagators: HashMap<HandlerEvent, Vec<PropagatorFn<'a>>>,
     depth: u32,
     client: Client,
     blacklist: Vec<String>,
     whitelist: Vec<String>,
 }
 
-impl Crawler {
+impl<'a> Crawler<'a> {
     /// Get a CrawlerBuilder
     /// Equivalent to `CrawlerBuilder::new()`
-    pub fn builder() -> CrawlerBuilder {
+    pub fn builder() -> CrawlerBuilder<'a> {
         CrawlerBuilder::new()
     }
 
     /// Create a crawler, consuming a CrawlerBuilder
     /// Equivalent to `CrawlerBuilder.build()`
-    pub fn from_builder(builder: CrawlerBuilder) -> Result<Self> {
+    pub fn from_builder(builder: CrawlerBuilder<'a>) -> Result<Self> {
         Ok(Self {
             handlers: builder.handlers,
             propagators: builder.propagators,
@@ -91,13 +91,21 @@ impl Crawler {
                         if self.is_allowed(&url.0) {
                             tasks += 1;
                             tokio::spawn(Self::fetch(url.0, url.1, client.clone(), s.clone()));
+                        } else {
+                            tasks += 1;
+                            s.send(Err(anyhow!(""))).await.unwrap();
                         }
                     }
                 }
             }
 
             // Get a fetched web page.
-            let (url, text, depth) = r.recv().await.unwrap();
+            let fetched = r.recv().await.unwrap();
+            if fetched.is_err() {
+                tasks -= 1;
+                continue;
+            }
+            let (url, text, depth) = fetched.unwrap();
             let doc = Html::parse_document(&text);
             let page = Page { url, text, doc };
             tasks -= 1;
@@ -176,12 +184,16 @@ impl Crawler {
         url: Url,
         depth: u32,
         client: Client,
-        sender: Sender<(Url, String, u32)>,
+        sender: Sender<Result<(Url, String, u32)>>,
     ) -> Result<()> {
-        let res = client.get(url.clone()).send().await?;
-        let text = res.text().await?;
-        sender.send((url, text, depth)).await?;
-        Ok(())
+        if let Ok(res) = client.get(url.clone()).send().await {
+            if let Ok(text) = res.text().await {
+                sender.send(Ok((url, text, depth))).await.unwrap();
+                return Ok(());
+            }
+        }
+        sender.send(Err(anyhow!(""))).await.unwrap();
+        bail!("");
     }
 
     fn is_allowed(&self, url: &Url) -> bool {

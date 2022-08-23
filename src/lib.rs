@@ -7,29 +7,26 @@ mod tests {
     use scraper::ElementRef;
     use std::collections::HashSet;
 
-    // this does not work with tokio test?
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn it_works() {
-        let mut seen: HashSet<String> = HashSet::new();
+        let mut c = 0;
         Crawler::builder()
             .add_default_propagators()
+            .whitelist("qiwi-button")
             .user_agent("Mozilla/5.0 (X11; Linux x86_64)...".into())
-            .add_handler("*[href]", |el: ElementRef, url: Url| {
-                if let Some(href) = el.value().attr("href") {
-                    if let Ok(abs_url) = url.join(href) {
-                        seen.insert(abs_url.to_string());
-                    } else {
-                        seen.insert(href.to_string());
-                    }
-                }
+            .add_handler("*[href]", move |_el: ElementRef, _page: &Page| {
+                let counter = &mut c;
+                // println!("incrementing counter");
+                counter += 1;
+                // c = *counter;
             })
             .depth(1)
             .build()
             .unwrap()
-            .crawl("https://vim.org/weird.php")
+            .crawl("http://plugins.svn.wordpress.org/qiwi-button")
             .await
             .unwrap();
 
-        assert_eq!(seen.len(), 32);
+        assert_eq!(c, 32);
     }
 }

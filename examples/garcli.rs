@@ -36,6 +36,7 @@ async fn main() -> Result<()> {
             }
         })
         .depth(args.depth)
+        .timeout(5, 0)
         .build()?
         .crawl(&args.url)
         .await?;
