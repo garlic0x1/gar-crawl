@@ -37,9 +37,9 @@ impl<'a> Crawler<'a> {
         })
     }
 
-    /// Start crawling at the provided URL
-    /// NOTE: "https://example.com/path" and "https://example.com/path/" may behave differently
-    /// see https://docs.rs/reqwest/0.10.8/reqwest/struct.Url.html#method.join
+    /// Start crawling at the provided URL  
+    /// NOTE: "scheme://domain.tld/path" and "scheme://domain.tld/path/" may behave differently,  
+    /// see <https://docs.rs/reqwest/0.10.8/reqwest/struct.Url.html#method.join> for info.
     pub async fn crawl(&mut self, start_url: &str) -> Result<Vec<anyhow::Error>> {
         let uri: Url = Url::parse(start_url)?;
         let client = Arc::new(self.client.clone());
