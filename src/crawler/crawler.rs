@@ -180,6 +180,7 @@ impl<'a> Crawler<'a> {
         Ok(())
     }
 
+    /// make a request and send the results on the async chan
     async fn fetch(
         url: Url,
         depth: u32,
@@ -196,6 +197,7 @@ impl<'a> Crawler<'a> {
         bail!("");
     }
 
+    /// match whitelist/blacklist rules
     fn is_allowed(&self, url: &Url) -> bool {
         let surl = url.to_string();
         if self

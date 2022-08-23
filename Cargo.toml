@@ -1,11 +1,11 @@
 [package]
 name = "gar-crawl"
-version = "0.1.11"
+version = "0.1.12"
 edition = "2021"
 description = "High level HTML crawler with concise builder"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/garlic0x1/gar-crawl"
-documentation = "https://docs.rs/gar-crawl/0.1.11"
+documentation = "https://docs.rs/gar-crawl"
 
 [dev-dependencies]
 clap = { version = "3.2.17", features = ["derive"] }

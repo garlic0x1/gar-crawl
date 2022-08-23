@@ -65,7 +65,7 @@ impl<'a> CrawlerBuilder<'a> {
     }
 
     /// add a handler  
-    /// closure type: `FnMut(Page)`  
+    /// closure type: `FnMut(&Page)`  
     pub fn on_page<F>(mut self, closure: F) -> Self
     where
         F: FnMut(&Page) + Send + Sync + 'a,
@@ -81,7 +81,7 @@ impl<'a> CrawlerBuilder<'a> {
     }
 
     /// add a handler  
-    /// closure type: `FnMut(ElementRef, Page)`  
+    /// closure type: `FnMut(ElementRef, &Page)`  
     pub fn add_handler<F>(mut self, sel: &str, closure: F) -> Self
     where
         F: FnMut(ElementRef, &Page) + Send + Sync + 'a,
