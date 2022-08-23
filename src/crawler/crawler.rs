@@ -49,7 +49,7 @@ impl<'a> Crawler<'a> {
 
         // set up async
         let mut queue: VecDeque<(Url, u32)> = VecDeque::new();
-        queue.push_back((uri.clone(), self.depth));
+        queue.push_back((uri.clone(), 0));
         let (s, r) = bounded(100);
         let mut tasks = 0;
 
@@ -78,24 +78,24 @@ impl<'a> Crawler<'a> {
 
             let (url, text, depth) = fetched.unwrap();
             let doc = Html::parse_document(&text);
-            let page = Page { url, text, doc };
+            let page = Page {
+                url,
+                text,
+                doc,
+                depth,
+            };
 
             self.do_handlers(&page)?;
 
-            if depth > 0 {
-                self.do_propagators(&page, depth, &mut queue)?;
+            if depth < self.depth {
+                self.do_propagators(&page, &mut queue)?;
             }
         }
 
         Ok(errors)
     }
 
-    fn do_propagators(
-        &mut self,
-        page: &Page,
-        depth: u32,
-        queue: &mut VecDeque<(Url, u32)>,
-    ) -> Result<()> {
+    fn do_propagators(&mut self, page: &Page, queue: &mut VecDeque<(Url, u32)>) -> Result<()> {
         let props = &mut self.propagators;
         for propagator in props.iter_mut() {
             match propagator.0 {
@@ -115,7 +115,7 @@ impl<'a> Crawler<'a> {
                                                 &self.whitelist,
                                                 &self.blacklist,
                                             ) {
-                                                queue.push_back((url, depth - 1));
+                                                queue.push_back((url, page.depth + 1));
                                             }
                                         }
                                     }
@@ -176,14 +176,24 @@ impl<'a> Crawler<'a> {
         client: Arc<Client>,
         sender: Sender<Result<(Url, String, u32)>>,
     ) -> Result<()> {
-        if let Ok(res) = client.get(url.clone()).send().await {
-            if let Ok(text) = res.text().await {
-                sender.send(Ok((url, text, depth))).await.unwrap();
-                return Ok(());
+        match client.get(url.clone()).send().await {
+            Ok(res) => match res.text().await {
+                Ok(text) => {
+                    sender.send(Ok((url, text, depth))).await.unwrap();
+                    Ok(())
+                }
+                Err(err) => {
+                    let err = anyhow!(err);
+                    sender.send(Err(err)).await.unwrap();
+                    Err(anyhow!("Failed read"))
+                }
+            },
+            Err(err) => {
+                let err = anyhow!(err);
+                sender.send(Err(err)).await.unwrap();
+                Err(anyhow!("Failed request"))
             }
         }
-        sender.send(Err(anyhow!(""))).await.unwrap();
-        bail!("");
     }
 
     /// match whitelist/blacklist rules

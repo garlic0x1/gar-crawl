@@ -12,7 +12,7 @@ mod tests {
         let errs = Crawler::builder()
             .add_default_propagators()
             .whitelist("qiwi-button")
-            .user_agent("Mozilla/5.0 (X11; Linux x86_64)...".into())
+            .user_agent("Mozilla/5.0 (X11; Linux x86_64)...")
             .on_page(|args: &HandlerArgs| {
                 let ustr = args.page.url.to_string();
                 if ustr.ends_with(".php") {

@@ -18,6 +18,8 @@ pub struct Page {
     pub text: String,
     /// Parsed HTML document
     pub doc: Html,
+    /// Current crawl depth
+    pub depth: u32,
 }
 
 /// These are the events you can hook into
