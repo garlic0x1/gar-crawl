@@ -19,7 +19,7 @@ mod tests {
                     links.insert(link.to_string());
                 }
             })
-            .on_page(|args: &HandlerArgs| {
+            .on_page(|args| {
                 let ustr = args.page.url.to_string();
                 if ustr.ends_with(".php") {
                     visited.insert(ustr);
