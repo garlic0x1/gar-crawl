@@ -11,8 +11,8 @@ This example will crawl from https://example.org to a depth of 3, printing all l
 Crawler::builder()
     .add_default_propagators()
     .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.79 Safari/537.36")
-    .add_handler("*[href]", |el: ElementRef, page: &Page| {
-        if let Some(href) = el.value().attr("href") {
+    .add_handler("*[href]", |args: &HandlerArgs| {
+        if let Some(href) = args.element.unwrap().value().attr("href") {
             println!("{href}");
         }
     })
