@@ -5,6 +5,7 @@ use reqwest::{Client, Url};
 use scraper::{ElementRef, Html, Selector};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::marker::Send;
+use std::sync::Arc;
 
 /// Data to pass to the user as closure arguments
 #[derive(Clone, Eq, PartialEq)]
@@ -71,7 +72,7 @@ impl<'a> Crawler<'a> {
     /// Start crawling at the provided URL
     pub async fn crawl(&mut self, start_url: &str) -> Result<()> {
         let uri: Url = Url::parse(start_url)?;
-        let client = self.client.clone();
+        let client = Arc::new(self.client.clone());
 
         let mut queue: VecDeque<(Url, u32)> = VecDeque::new();
         let mut seen: HashSet<Url> = HashSet::new();
@@ -184,7 +185,7 @@ impl<'a> Crawler<'a> {
     async fn fetch(
         url: Url,
         depth: u32,
-        client: Client,
+        client: Arc<Client>,
         sender: Sender<Result<(Url, String, u32)>>,
     ) -> Result<()> {
         if let Ok(res) = client.get(url.clone()).send().await {

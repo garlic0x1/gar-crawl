@@ -128,23 +128,33 @@ impl<'a> CrawlerBuilder<'a> {
         let href_prop = |el: ElementRef, page: &Page| -> Option<Url> {
             if let Some(href) = el.value().attr("href") {
                 if let Ok(abs_url) = page.url.join(href) {
-                    return Some(abs_url);
+                    Some(abs_url)
                 } else {
-                    return Some(page.url.clone());
+                    if let Ok(url) = Url::parse(href) {
+                        Some(url)
+                    } else {
+                        None
+                    }
                 }
+            } else {
+                None
             }
-            None
         };
 
         let src_prop = |el: ElementRef, page: &Page| -> Option<Url> {
             if let Some(href) = el.value().attr("src") {
                 if let Ok(abs_url) = page.url.join(href) {
-                    return Some(abs_url);
+                    Some(abs_url)
                 } else {
-                    return Some(page.url.clone());
+                    if let Ok(url) = Url::parse(href) {
+                        Some(url)
+                    } else {
+                        None
+                    }
                 }
+            } else {
+                None
             }
-            None
         };
 
         self = self.add_propagator("*[href]", href_prop);
