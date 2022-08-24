@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
 use reqwest::{Client, Url};
 use scraper::{ElementRef, Html};
+use std::sync::Arc;
 
 /// Handlers are void fns
 pub type Handler<'a> = Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a>;

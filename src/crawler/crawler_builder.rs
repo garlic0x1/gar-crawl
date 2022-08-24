@@ -93,6 +93,20 @@ impl<'a> CrawlerBuilder<'a> {
         self
     }
 
+    /// add a propagator  
+    /// closure type: `FnMut(&HandlerArgs) -> Option<Url>`  
+    pub fn on_page_propagator<F>(mut self, closure: F) -> Self
+    where
+        F: FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a,
+    {
+        let closure: Propagator = Box::new(closure);
+        if let Some(propagators) = self.propagators.get_mut(&HandlerEvent::OnPage) {
+            propagators.push(closure)
+        } else {
+            self.propagators.insert(HandlerEvent::OnPage, vec![closure]);
+        }
+        self
+    }
     /// add a handler  
     /// closure type: `FnMut(&HandlerArgs)`  
     pub fn add_handler<F>(mut self, sel: &str, closure: F) -> Self

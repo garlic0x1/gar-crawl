@@ -96,8 +96,7 @@ impl<'a> Crawler<'a> {
     }
 
     fn do_propagators(&mut self, page: &Page, queue: &mut VecDeque<(Url, u32)>) -> Result<()> {
-        let props = &mut self.propagators;
-        for propagator in props.iter_mut() {
+        for propagator in self.propagators.iter_mut() {
             match propagator.0 {
                 HandlerEvent::OnSelector(sel) => {
                     if let Ok(sel) = Selector::parse(&sel) {
@@ -120,7 +119,15 @@ impl<'a> Crawler<'a> {
                         bail!("invalid selector {}", sel);
                     }
                 }
-                HandlerEvent::OnPage => (), // TODO
+                HandlerEvent::OnPage => {
+                    propagator.1.iter_mut().for_each(|p| {
+                        p(&HandlerArgs {
+                            page,
+                            element: None,
+                            client: self.client.clone(),
+                        });
+                    });
+                }
             }
         }
         Ok(())
