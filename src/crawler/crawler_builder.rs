@@ -3,6 +3,8 @@ use super::handler::*;
 use anyhow::Result;
 use reqwest::{Client, Url};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
 use std::marker::Send;
 
 /// Builder object for Crawler, fields are left public
@@ -53,6 +55,18 @@ impl<'a> CrawlerBuilder<'a> {
     /// set the crawl depth ( default 2 )
     pub fn depth(mut self, depth: u32) -> Self {
         self.depth = depth;
+        self
+    }
+
+    /// set an https proxy with a cacert.der file
+    pub fn proxy(mut self, proxy_str: &str, ca_cert: &str) -> Self {
+        let mut buf = Vec::new();
+        File::open(ca_cert).unwrap().read_to_end(&mut buf).unwrap();
+        let cert = reqwest::Certificate::from_der(&buf).unwrap();
+
+        let proxy = reqwest::Proxy::all(proxy_str).unwrap();
+
+        self.client_builder = self.client_builder.add_root_certificate(cert).proxy(proxy);
         self
     }
 
