@@ -12,8 +12,12 @@ struct Arguments {
     url: String,
 
     /// crawl depth
-    #[clap(short, long)]
-    depth: u32,
+    #[clap(default_value_t = 2, short, long)]
+    depth: usize,
+
+    /// concurrency limit
+    #[clap(default_value_t = 40, short, long)]
+    workers: usize,
 }
 
 #[tokio::main]
@@ -23,9 +27,10 @@ async fn main() -> Result<()> {
 
     Crawler::builder()
         .add_default_propagators()
-        .proxy("127.0.0.1:8080", "examples/cacert.der")
         .whitelist(&args.url)
+        .proxy("127.0.0.1:8080", "examples/cacert.der")?
         .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.79 Safari/537.36".into())
+        .workers(args.workers)
         .add_handler("*[href]", |args| {
             if let Some(href) = args.element.unwrap().value().attr("href") {
                 if let Ok(abs_url) = args.page.url.join(href) {

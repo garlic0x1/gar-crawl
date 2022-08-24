@@ -28,7 +28,7 @@ pub struct Page {
     /// Parsed HTML document
     pub doc: Html,
     /// Current crawl depth
-    pub depth: u32,
+    pub depth: usize,
 }
 
 /// These are the events you can hook into

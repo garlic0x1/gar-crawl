@@ -12,7 +12,8 @@ pub struct CrawlerBuilder<'a> {
     pub client_builder: reqwest::ClientBuilder,
     pub handlers: HashMap<HandlerEvent, Vec<Handler<'a>>>,
     pub propagators: HashMap<HandlerEvent, Vec<Propagator<'a>>>,
-    pub depth: u32,
+    pub depth: usize,
+    pub workers: usize,
     pub blacklist: Vec<String>,
     pub whitelist: Vec<String>,
 }
@@ -24,6 +25,7 @@ impl<'a> CrawlerBuilder<'a> {
             handlers: HashMap::new(),
             propagators: HashMap::new(),
             depth: 2,
+            workers: 40,
             whitelist: vec![],
             blacklist: vec![],
         }
@@ -47,11 +49,16 @@ impl<'a> CrawlerBuilder<'a> {
     }
 
     /// set the crawl depth ( default 2 )
-    pub fn depth(mut self, depth: u32) -> Self {
+    pub fn depth(mut self, depth: usize) -> Self {
         self.depth = depth;
         self
     }
 
+    /// set the concurrency limit ( default 40 )
+    pub fn workers(mut self, limit: usize) -> Self {
+        self.workers = limit;
+        self
+    }
     /// set the user agent
     pub fn user_agent(mut self, user_agent: &'a str) -> Self {
         self.client_builder = self.client_builder.user_agent(user_agent.to_string());
@@ -59,15 +66,15 @@ impl<'a> CrawlerBuilder<'a> {
     }
 
     /// set an https proxy with a cacert.der file
-    pub fn proxy(mut self, proxy_str: &str, ca_cert: &str) -> Self {
+    pub fn proxy(mut self, proxy_str: &str, ca_cert: &str) -> Result<Self> {
         let mut buf = Vec::new();
-        File::open(ca_cert).unwrap().read_to_end(&mut buf).unwrap();
-        let cert = reqwest::Certificate::from_der(&buf).unwrap();
+        File::open(ca_cert)?.read_to_end(&mut buf)?;
+        let cert = reqwest::Certificate::from_der(&buf)?;
 
-        let proxy = reqwest::Proxy::all(proxy_str).unwrap();
+        let proxy = reqwest::Proxy::all(proxy_str)?;
 
         self.client_builder = self.client_builder.add_root_certificate(cert).proxy(proxy);
-        self
+        Ok(self)
     }
 
     /// set the request timeout
@@ -148,7 +155,9 @@ impl<'a> CrawlerBuilder<'a> {
         self
     }
 
-    /// propagate on all href and src attributes
+    /// propagate on all href and src attributes  
+    /// NOTE: "scheme://domain.tld/path" and "scheme://domain.tld/path/" may behave differently,  
+    /// see <https://docs.rs/reqwest/0.10.8/reqwest/struct.Url.html#method.join> for info.
     pub fn add_default_propagators(mut self) -> Self {
         let href_prop = |args: &HandlerArgs| -> Option<Url> {
             if let Some(href) = args.element.unwrap().value().attr("href") {

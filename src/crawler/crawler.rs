@@ -11,7 +11,8 @@ use std::sync::Arc;
 pub struct Crawler<'a> {
     handlers: HashMap<HandlerEvent, Vec<Handler<'a>>>,
     propagators: HashMap<HandlerEvent, Vec<Propagator<'a>>>,
-    depth: u32,
+    depth: usize,
+    workers: usize,
     client: Arc<Client>,
     blacklist: Vec<String>,
     whitelist: Vec<String>,
@@ -31,15 +32,14 @@ impl<'a> Crawler<'a> {
             handlers: builder.handlers,
             propagators: builder.propagators,
             depth: builder.depth,
+            workers: builder.workers,
             client: Arc::new(builder.client_builder.build()?),
             blacklist: builder.blacklist,
             whitelist: builder.whitelist,
         })
     }
 
-    /// Start crawling at the provided URL  
-    /// NOTE: "scheme://domain.tld/path" and "scheme://domain.tld/path/" may behave differently,  
-    /// see <https://docs.rs/reqwest/0.10.8/reqwest/struct.Url.html#method.join> for info.
+    /// Start crawling at the provided URL
     pub async fn crawl(&mut self, start_url: &str) -> Result<Vec<anyhow::Error>> {
         let uri: Url = Url::parse(start_url)?;
         let mut errors = vec![];
@@ -47,9 +47,9 @@ impl<'a> Crawler<'a> {
         seen.insert(uri.clone());
 
         // set up async
-        let mut queue: VecDeque<(Url, u32)> = VecDeque::new();
+        let mut queue: VecDeque<(Url, usize)> = VecDeque::new();
         queue.push_back((uri.clone(), 0));
-        let (s, r) = bounded(100);
+        let (s, r) = bounded(self.workers);
         let mut tasks = 0;
 
         // Loop while the queue is not empty or tasks are fetching pages.
@@ -95,7 +95,7 @@ impl<'a> Crawler<'a> {
         Ok(errors)
     }
 
-    fn do_propagators(&mut self, page: &Page, queue: &mut VecDeque<(Url, u32)>) -> Result<()> {
+    fn do_propagators(&mut self, page: &Page, queue: &mut VecDeque<(Url, usize)>) -> Result<()> {
         for propagator in self.propagators.iter_mut() {
             match propagator.0 {
                 HandlerEvent::OnSelector(sel) => {
@@ -169,9 +169,9 @@ impl<'a> Crawler<'a> {
     /// make a request and send the results on the async chan
     async fn fetch(
         url: Url,
-        depth: u32,
+        depth: usize,
         client: Arc<Client>,
-        sender: Sender<Result<(Url, String, u32)>>,
+        sender: Sender<Result<(Url, String, usize)>>,
     ) -> Result<()> {
         match client.get(url.clone()).send().await {
             Ok(res) => match res.text().await {
