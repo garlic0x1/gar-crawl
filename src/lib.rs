@@ -32,9 +32,12 @@ mod tests {
             .await
             .unwrap();
 
+        // show what went wrong
         println!("{:?}", visited);
         println!("{:?}", links);
         println!("{:?}", errs);
+
+        assert_eq!(errs.len(), 0);
         assert_eq!(visited.len(), 18);
         assert_eq!(links.len(), 61);
     }

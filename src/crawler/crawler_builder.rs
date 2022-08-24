@@ -10,8 +10,8 @@ use std::marker::Send;
 /// Builder object for Crawler, fields are left public
 pub struct CrawlerBuilder<'a> {
     pub client_builder: reqwest::ClientBuilder,
-    pub handlers: HashMap<HandlerEvent, Vec<HandlerFn<'a>>>,
-    pub propagators: HashMap<HandlerEvent, Vec<PropagatorFn<'a>>>,
+    pub handlers: HashMap<HandlerEvent, Vec<Handler<'a>>>,
+    pub propagators: HashMap<HandlerEvent, Vec<Propagator<'a>>>,
     pub depth: u32,
     pub blacklist: Vec<String>,
     pub whitelist: Vec<String>,
@@ -85,11 +85,10 @@ impl<'a> CrawlerBuilder<'a> {
         F: FnMut(&HandlerArgs) + Send + Sync + 'a,
     {
         let closure: Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a> = Box::new(closure);
-        let wrapped = HandlerFn::OnPage(closure);
         if let Some(handlers) = self.handlers.get_mut(&HandlerEvent::OnPage) {
-            handlers.push(wrapped)
+            handlers.push(closure)
         } else {
-            self.handlers.insert(HandlerEvent::OnPage, vec![wrapped]);
+            self.handlers.insert(HandlerEvent::OnPage, vec![closure]);
         }
         self
     }
@@ -102,15 +101,14 @@ impl<'a> CrawlerBuilder<'a> {
     {
         let sel = sel.to_string();
         let closure: Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a> = Box::new(closure);
-        let wrapped = HandlerFn::OnSelector(closure);
         if let Some(handlers) = self
             .handlers
             .get_mut(&HandlerEvent::OnSelector(sel.clone()))
         {
-            handlers.push(wrapped)
+            handlers.push(closure)
         } else {
             self.handlers
-                .insert(HandlerEvent::OnSelector(sel.clone()), vec![wrapped]);
+                .insert(HandlerEvent::OnSelector(sel.clone()), vec![closure]);
         }
         self
     }
@@ -124,15 +122,14 @@ impl<'a> CrawlerBuilder<'a> {
         let sel = sel.to_string();
         let closure: Box<dyn FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a> =
             Box::new(closure);
-        let wrapped = PropagatorFn::OnSelector(closure);
         if let Some(propagators) = self
             .propagators
             .get_mut(&HandlerEvent::OnSelector(sel.clone()))
         {
-            propagators.push(wrapped)
+            propagators.push(closure)
         } else {
             self.propagators
-                .insert(HandlerEvent::OnSelector(sel), vec![wrapped]);
+                .insert(HandlerEvent::OnSelector(sel), vec![closure]);
         }
         self
     }

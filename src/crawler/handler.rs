@@ -1,13 +1,23 @@
-use reqwest::Url;
+use std::sync::Arc;
+
+use reqwest::{Client, Url};
 use scraper::{ElementRef, Html};
 
+/// Handlers are void fns
+pub type Handler<'a> = Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a>;
+
+// Propagators return a Url to queue (TODO: return a vec of Urls instead of a single Url)
+pub type Propagator<'a> = Box<dyn FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a>;
+
 /// Data to pass to the user as closure arguments
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct HandlerArgs<'a> {
     /// current page
     pub page: &'a Page,
     /// CSS element if available
     pub element: Option<ElementRef<'a>>,
+    /// Reqwest client
+    pub client: Arc<Client>,
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -29,16 +39,4 @@ pub enum HandlerEvent {
     OnSelector(String),
     /// Handle every page loaded
     OnPage,
-}
-
-/// Closure types for handlers
-pub enum HandlerFn<'a> {
-    OnSelector(Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a>),
-    OnPage(Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a>),
-}
-
-/// Closure types for propagators
-pub enum PropagatorFn<'a> {
-    OnSelector(Box<dyn FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a>),
-    OnPage(Box<dyn FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a>),
 }

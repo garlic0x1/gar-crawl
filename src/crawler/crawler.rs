@@ -9,10 +9,10 @@ use std::sync::Arc;
 
 /// A crawler object, use builder() to build with CrawlerBuilder
 pub struct Crawler<'a> {
-    handlers: HashMap<HandlerEvent, Vec<HandlerFn<'a>>>,
-    propagators: HashMap<HandlerEvent, Vec<PropagatorFn<'a>>>,
+    handlers: HashMap<HandlerEvent, Vec<Handler<'a>>>,
+    propagators: HashMap<HandlerEvent, Vec<Propagator<'a>>>,
     depth: u32,
-    client: Client,
+    client: Arc<Client>,
     blacklist: Vec<String>,
     whitelist: Vec<String>,
 }
@@ -31,7 +31,7 @@ impl<'a> Crawler<'a> {
             handlers: builder.handlers,
             propagators: builder.propagators,
             depth: builder.depth,
-            client: builder.client_builder.build()?,
+            client: Arc::new(builder.client_builder.build()?),
             blacklist: builder.blacklist,
             whitelist: builder.whitelist,
         })
@@ -42,7 +42,6 @@ impl<'a> Crawler<'a> {
     /// see <https://docs.rs/reqwest/0.10.8/reqwest/struct.Url.html#method.join> for info.
     pub async fn crawl(&mut self, start_url: &str) -> Result<Vec<anyhow::Error>> {
         let uri: Url = Url::parse(start_url)?;
-        let client = Arc::new(self.client.clone());
         let mut errors = vec![];
         let mut seen: HashSet<Url> = HashSet::new();
         seen.insert(uri.clone());
@@ -62,7 +61,7 @@ impl<'a> Crawler<'a> {
                     None => break,
                     Some(url) => {
                         tasks += 1;
-                        tokio::spawn(Self::fetch(url.0, url.1, client.clone(), s.clone()));
+                        tokio::spawn(Self::fetch(url.0, url.1, self.client.clone(), s.clone()));
                     }
                 }
             }
@@ -76,6 +75,7 @@ impl<'a> Crawler<'a> {
                 continue;
             }
 
+            // wrap up data for handlers
             let (url, text, depth) = fetched.unwrap();
             let doc = Html::parse_document(&text);
             let page = Page {
@@ -102,25 +102,18 @@ impl<'a> Crawler<'a> {
                 HandlerEvent::OnSelector(sel) => {
                     if let Ok(sel) = Selector::parse(&sel) {
                         for propagator in propagator.1.iter_mut() {
-                            match propagator {
-                                PropagatorFn::OnSelector(prop) => {
-                                    for el in page.doc.select(&sel) {
-                                        let args = HandlerArgs {
-                                            page,
-                                            element: Some(el),
-                                        };
-                                        if let Some(url) = prop(&args) {
-                                            if Self::is_allowed(
-                                                &url,
-                                                &self.whitelist,
-                                                &self.blacklist,
-                                            ) {
-                                                queue.push_back((url, page.depth + 1));
-                                            }
-                                        }
+                            for el in page.doc.select(&sel) {
+                                let args = HandlerArgs {
+                                    page,
+                                    element: Some(el),
+                                    client: self.client.clone(),
+                                };
+
+                                if let Some(url) = propagator(&args) {
+                                    if Self::is_allowed(&url, &self.whitelist, &self.blacklist) {
+                                        queue.push_back((url, page.depth + 1));
                                     }
                                 }
-                                PropagatorFn::OnPage(_) => (), // wrong kind
                             }
                         }
                     } else {
@@ -139,14 +132,13 @@ impl<'a> Crawler<'a> {
                 HandlerEvent::OnSelector(sel) => {
                     if let Ok(sel) = Selector::parse(sel) {
                         for handler in handlers.1.iter_mut() {
-                            if let HandlerFn::OnSelector(handler) = handler {
-                                for el in page.doc.select(&sel) {
-                                    let args = HandlerArgs {
-                                        page,
-                                        element: Some(el),
-                                    };
-                                    handler(&args);
-                                }
+                            for el in page.doc.select(&sel) {
+                                let args = HandlerArgs {
+                                    page,
+                                    element: Some(el),
+                                    client: self.client.clone(),
+                                };
+                                handler(&args);
                             }
                         }
                     } else {
@@ -155,13 +147,11 @@ impl<'a> Crawler<'a> {
                 }
                 HandlerEvent::OnPage => {
                     handlers.1.iter_mut().for_each(|h| {
-                        if let HandlerFn::OnPage(handler) = h {
-                            let args = HandlerArgs {
-                                page,
-                                element: None,
-                            };
-                            handler(&args);
-                        }
+                        h(&HandlerArgs {
+                            page,
+                            element: None,
+                            client: self.client.clone(),
+                        });
                     });
                 }
             }
