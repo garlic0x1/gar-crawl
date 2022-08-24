@@ -46,15 +46,15 @@ impl<'a> CrawlerBuilder<'a> {
         self
     }
 
-    /// set the user agent
-    pub fn user_agent(mut self, user_agent: &'a str) -> Self {
-        self.client_builder = self.client_builder.user_agent(user_agent.to_string());
-        self
-    }
-
     /// set the crawl depth ( default 2 )
     pub fn depth(mut self, depth: u32) -> Self {
         self.depth = depth;
+        self
+    }
+
+    /// set the user agent
+    pub fn user_agent(mut self, user_agent: &'a str) -> Self {
+        self.client_builder = self.client_builder.user_agent(user_agent.to_string());
         self
     }
 
