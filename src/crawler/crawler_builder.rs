@@ -33,47 +33,47 @@ impl<'a> CrawlerBuilder<'a> {
         }
     }
 
-    /// consume the Builder and produce a Crawler
+    /// Consume the Builder and produce a Crawler
     pub fn build(self) -> Result<Crawler<'a>> {
         Crawler::from_builder(self)
     }
 
-    /// dont crawl a url containing expr
+    /// Don't crawl a Url containing `expr`
     pub fn blacklist(mut self, expr: &str) -> Self {
         self.blacklist.push(expr.to_string());
         self
     }
 
-    /// only crawl urls containing expr
+    /// Only crawl Urls containing `expr`
     pub fn whitelist(mut self, expr: &str) -> Self {
         self.whitelist.push(expr.to_string());
         self
     }
 
-    /// set the crawl depth ( default 2 )
+    /// Set the crawl depth ( default: 2 )
     pub fn depth(mut self, depth: usize) -> Self {
         self.depth = depth;
         self
     }
 
-    /// revisit pages ( default false )
+    /// Revisit pages ( default: false )
     pub fn revisit(mut self, revisit: bool) -> Self {
         self.revisit = revisit;
         self
     }
 
-    /// set the concurrency limit ( default 40 )
+    /// Set the concurrency limit ( default: 40 )
     pub fn workers(mut self, limit: usize) -> Self {
         self.workers = limit;
         self
     }
-    /// set the user agent
+    /// Set the user agent
     pub fn user_agent(mut self, user_agent: &'a str) -> Self {
         self.client_builder = self.client_builder.user_agent(user_agent.to_string());
         self
     }
 
-    /// set an https proxy with a cacert.der file
+    /// Set an https proxy with a cacert.der file
     pub fn proxy(mut self, proxy_str: &str, ca_cert: &str) -> Result<Self> {
         let mut buf = Vec::new();
         File::open(ca_cert)?.read_to_end(&mut buf)?;
@@ -85,7 +85,7 @@ impl<'a> CrawlerBuilder<'a> {
         Ok(self)
     }
 
-    /// set the request timeout
+    /// Set the request timeout
     pub fn timeout(mut self, seconds: u64, nanoseconds: u32) -> Self {
         self.client_builder = self
             .client_builder
@@ -93,8 +93,8 @@ impl<'a> CrawlerBuilder<'a> {
         self
     }
 
-    /// add a handler  
-    /// closure type: `FnMut(&HandlerArgs)`  
+    /// Add a handler  
+    /// Closure type: `FnMut(&HandlerArgs)`  
     pub fn on_page<F>(mut self, closure: F) -> Self
     where
         F: FnMut(&HandlerArgs) + Send + Sync + 'a,
@@ -108,8 +108,8 @@ impl<'a> CrawlerBuilder<'a> {
         self
     }
 
-    /// add a propagator  
-    /// closure type: `FnMut(&HandlerArgs) -> Vec<Url>`  
+    /// Add a propagator  
+    /// Closure type: `FnMut(&HandlerArgs) -> Vec<Url>`  
     pub fn on_page_propagator<F>(mut self, closure: F) -> Self
     where
         F: FnMut(&HandlerArgs) -> Vec<Url> + Send + Sync + 'a,
@@ -122,8 +122,9 @@ impl<'a> CrawlerBuilder<'a> {
         }
         self
     }
-    /// add a handler  
-    /// closure type: `FnMut(&HandlerArgs)`  
+
+    /// Add a handler  
+    /// Closure type: `FnMut(&HandlerArgs)`  
     pub fn add_handler<F>(mut self, sel: &str, closure: F) -> Self
     where
         F: FnMut(&HandlerArgs) + Send + Sync + 'a,
@@ -142,8 +143,8 @@ impl<'a> CrawlerBuilder<'a> {
         self
     }
 
-    /// add a propagator  
-    /// closure type: `FnMut(&HandlerArgs) -> Vec<Url>`
+    /// Add a propagator  
+    /// Closure type: `FnMut(&HandlerArgs) -> Vec<Url>`
     pub fn add_propagator<F>(mut self, sel: &str, closure: F) -> Self
     where
         F: FnMut(&HandlerArgs) -> Vec<Url> + 'a + Send + Sync,
@@ -163,7 +164,7 @@ impl<'a> CrawlerBuilder<'a> {
         self
     }
 
-    /// propagate on all href and src attributes  
+    /// Propagate on all href and src attributes  
     /// NOTE: "scheme://domain.tld/path" and "scheme://domain.tld/path/" may behave differently,  
     /// see <https://docs.rs/reqwest/0.10.8/reqwest/struct.Url.html#method.join> for info.
     pub fn add_default_propagators(mut self) -> Self {

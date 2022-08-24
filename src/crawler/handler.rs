@@ -2,16 +2,16 @@ use reqwest::{Client, Url};
 use scraper::{ElementRef, Html};
 use std::sync::Arc;
 
-/// Handlers are void fns
+/// Handlers are void Fns
 pub type Handler<'a> = Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a>;
 
-// Propagators return a Url to queue (TODO: return a vec of Urls instead of a single Url)
+/// Propagators return a `Vec<Url>` to queue
 pub type Propagator<'a> = Box<dyn FnMut(&HandlerArgs) -> Vec<Url> + Send + Sync + 'a>;
 
 /// Data to pass to the user as closure arguments
 #[derive(Clone)]
 pub struct HandlerArgs<'a> {
-    /// current page
+    /// Current page
     pub page: &'a Page,
     /// CSS element if available
     pub element: Option<ElementRef<'a>>,
@@ -19,6 +19,7 @@ pub struct HandlerArgs<'a> {
     pub client: Arc<Client>,
 }
 
+/// Information about the current page
 #[derive(Clone, Eq, PartialEq)]
 pub struct Page {
     /// Url of the current location
