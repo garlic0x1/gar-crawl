@@ -6,7 +6,7 @@ use std::sync::Arc;
 pub type Handler<'a> = Box<dyn FnMut(&HandlerArgs) + Send + Sync + 'a>;
 
 // Propagators return a Url to queue (TODO: return a vec of Urls instead of a single Url)
-pub type Propagator<'a> = Box<dyn FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a>;
+pub type Propagator<'a> = Box<dyn FnMut(&HandlerArgs) -> Vec<Url> + Send + Sync + 'a>;
 
 /// Data to pass to the user as closure arguments
 #[derive(Clone)]

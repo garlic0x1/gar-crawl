@@ -96,35 +96,42 @@ impl<'a> Crawler<'a> {
     }
 
     fn do_propagators(&mut self, page: &Page, queue: &mut VecDeque<(Url, usize)>) -> Result<()> {
-        for propagator in self.propagators.iter_mut() {
-            match propagator.0 {
+        let wl = &self.whitelist;
+        let bl = &self.blacklist;
+
+        for (kind, props) in self.propagators.iter_mut() {
+            match kind {
                 HandlerEvent::OnSelector(sel) => {
                     if let Ok(sel) = Selector::parse(&sel) {
-                        for propagator in propagator.1.iter_mut() {
-                            for el in page.doc.select(&sel) {
-                                let args = HandlerArgs {
+                        props.iter_mut().for_each(|propagator| {
+                            page.doc.select(&sel).for_each(|el| {
+                                propagator(&HandlerArgs {
                                     page,
                                     element: Some(el),
                                     client: self.client.clone(),
-                                };
-
-                                if let Some(url) = propagator(&args) {
-                                    if Self::is_allowed(&url, &self.whitelist, &self.blacklist) {
-                                        queue.push_back((url, page.depth + 1));
-                                    }
-                                }
-                            }
-                        }
+                                })
+                                .iter()
+                                .filter(|u| Self::is_allowed(u, wl, bl))
+                                .for_each(|u| {
+                                    queue.push_back((u.clone(), page.depth + 1));
+                                });
+                            });
+                        });
                     } else {
                         bail!("invalid selector {}", sel);
                     }
                 }
                 HandlerEvent::OnPage => {
-                    propagator.1.iter_mut().for_each(|p| {
-                        p(&HandlerArgs {
+                    props.iter_mut().for_each(|propagator| {
+                        propagator(&HandlerArgs {
                             page,
                             element: None,
                             client: self.client.clone(),
+                        })
+                        .iter()
+                        .filter(|u| Self::is_allowed(u, wl, bl))
+                        .for_each(|u| {
+                            queue.push_back((u.clone(), page.depth + 1));
                         });
                     });
                 }
@@ -134,27 +141,26 @@ impl<'a> Crawler<'a> {
     }
 
     fn do_handlers(&mut self, page: &Page) -> Result<()> {
-        for handlers in self.handlers.iter_mut() {
-            match handlers.0 {
+        for (kind, handlers) in self.handlers.iter_mut() {
+            match kind {
                 HandlerEvent::OnSelector(sel) => {
                     if let Ok(sel) = Selector::parse(sel) {
-                        for handler in handlers.1.iter_mut() {
-                            for el in page.doc.select(&sel) {
-                                let args = HandlerArgs {
+                        handlers.iter_mut().for_each(|handler| {
+                            page.doc.select(&sel).for_each(|el| {
+                                handler(&HandlerArgs {
                                     page,
                                     element: Some(el),
                                     client: self.client.clone(),
-                                };
-                                handler(&args);
-                            }
-                        }
+                                });
+                            });
+                        });
                     } else {
                         bail!("invalid selector {}", sel);
                     }
                 }
                 HandlerEvent::OnPage => {
-                    handlers.1.iter_mut().for_each(|h| {
-                        h(&HandlerArgs {
+                    handlers.iter_mut().for_each(|handler| {
+                        handler(&HandlerArgs {
                             page,
                             element: None,
                             client: self.client.clone(),

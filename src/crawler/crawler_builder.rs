@@ -101,10 +101,10 @@ impl<'a> CrawlerBuilder<'a> {
     }
 
     /// add a propagator  
-    /// closure type: `FnMut(&HandlerArgs) -> Option<Url>`  
+    /// closure type: `FnMut(&HandlerArgs) -> Vec<Url>`  
     pub fn on_page_propagator<F>(mut self, closure: F) -> Self
     where
-        F: FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a,
+        F: FnMut(&HandlerArgs) -> Vec<Url> + Send + Sync + 'a,
     {
         let closure: Propagator = Box::new(closure);
         if let Some(propagators) = self.propagators.get_mut(&HandlerEvent::OnPage) {
@@ -135,13 +135,13 @@ impl<'a> CrawlerBuilder<'a> {
     }
 
     /// add a propagator  
-    /// closure type: `FnMut(&HandlerArgs) -> Option<Url>`
+    /// closure type: `FnMut(&HandlerArgs) -> Vec<Url>`
     pub fn add_propagator<F>(mut self, sel: &str, closure: F) -> Self
     where
-        F: FnMut(&HandlerArgs) -> Option<Url> + 'a + Send + Sync,
+        F: FnMut(&HandlerArgs) -> Vec<Url> + 'a + Send + Sync,
     {
         let sel = sel.to_string();
-        let closure: Box<dyn FnMut(&HandlerArgs) -> Option<Url> + Send + Sync + 'a> =
+        let closure: Box<dyn FnMut(&HandlerArgs) -> Vec<Url> + Send + Sync + 'a> =
             Box::new(closure);
         if let Some(propagators) = self
             .propagators
@@ -159,31 +159,31 @@ impl<'a> CrawlerBuilder<'a> {
     /// NOTE: "scheme://domain.tld/path" and "scheme://domain.tld/path/" may behave differently,  
     /// see <https://docs.rs/reqwest/0.10.8/reqwest/struct.Url.html#method.join> for info.
     pub fn add_default_propagators(mut self) -> Self {
-        let href_prop = |args: &HandlerArgs| -> Option<Url> {
+        let href_prop = |args: &HandlerArgs| -> Vec<Url> {
             if let Some(href) = args.element.unwrap().value().attr("href") {
                 if let Ok(url) = Url::parse(href) {
-                    Some(url)
+                    vec![url]
                 } else if let Ok(url) = args.page.url.join(href) {
-                    Some(url)
+                    vec![url]
                 } else {
-                    None
+                    vec![]
                 }
             } else {
-                None
+                vec![]
             }
         };
 
-        let src_prop = |args: &HandlerArgs| -> Option<Url> {
+        let src_prop = |args: &HandlerArgs| -> Vec<Url> {
             if let Some(href) = args.element.unwrap().value().attr("src") {
                 if let Ok(url) = Url::parse(href) {
-                    Some(url)
+                    vec![url]
                 } else if let Ok(url) = args.page.url.join(href) {
-                    Some(url)
+                    vec![url]
                 } else {
-                    None
+                    vec![]
                 }
             } else {
-                None
+                vec![]
             }
         };
 
