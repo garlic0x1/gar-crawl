@@ -16,6 +16,8 @@ pub struct Crawler<'a> {
     client: Arc<Client>,
     blacklist: Vec<String>,
     whitelist: Vec<String>,
+    visited: HashSet<String>,
+    revisit: bool,
 }
 
 impl<'a> Crawler<'a> {
@@ -36,10 +38,12 @@ impl<'a> Crawler<'a> {
             client: Arc::new(builder.client_builder.build()?),
             blacklist: builder.blacklist,
             whitelist: builder.whitelist,
+            visited: HashSet::new(),
+            revisit: builder.revisit,
         })
     }
 
-    /// Start crawling at the provided URL
+    /// Start crawling at the provided URL and return errors that occur
     pub async fn crawl(&mut self, start_url: &str) -> Result<Vec<anyhow::Error>> {
         let uri: Url = Url::parse(start_url)?;
         let mut errors = vec![];
@@ -66,7 +70,7 @@ impl<'a> Crawler<'a> {
                 }
             }
 
-            // Get a fetched web page.
+            // Recieve a message
             let fetched = r.recv().await.unwrap();
             tasks -= 1;
 
@@ -98,6 +102,8 @@ impl<'a> Crawler<'a> {
     fn do_propagators(&mut self, page: &Page, queue: &mut VecDeque<(Url, usize)>) -> Result<()> {
         let wl = &self.whitelist;
         let bl = &self.blacklist;
+        let mut visited = &mut self.visited;
+        let revisit = self.revisit;
 
         for (kind, props) in self.propagators.iter_mut() {
             match kind {
@@ -111,7 +117,10 @@ impl<'a> Crawler<'a> {
                                     client: self.client.clone(),
                                 })
                                 .iter()
-                                .filter(|u| Self::is_allowed(u, wl, bl))
+                                .filter(|u| {
+                                    Self::is_allowed(u, wl, bl)
+                                        && (revisit || !Self::is_visited(u, &mut visited))
+                                })
                                 .for_each(|u| {
                                     queue.push_back((u.clone(), page.depth + 1));
                                 });
@@ -129,7 +138,10 @@ impl<'a> Crawler<'a> {
                             client: self.client.clone(),
                         })
                         .iter()
-                        .filter(|u| Self::is_allowed(u, wl, bl))
+                        .filter(|u| {
+                            Self::is_allowed(u, wl, bl)
+                                && (revisit || !Self::is_visited(u, &mut visited))
+                        })
                         .for_each(|u| {
                             queue.push_back((u.clone(), page.depth + 1));
                         });
@@ -179,6 +191,7 @@ impl<'a> Crawler<'a> {
         client: Arc<Client>,
         sender: Sender<Result<(Url, String, usize)>>,
     ) -> Result<()> {
+        // Must send a message or die trying
         match client.get(url.clone()).send().await {
             Ok(res) => match res.text().await {
                 Ok(text) => {
@@ -197,6 +210,12 @@ impl<'a> Crawler<'a> {
                 Err(anyhow!("Failed request"))
             }
         }
+    }
+
+    /// see if this url has been visited yet
+    fn is_visited(url: &Url, visited: &mut HashSet<String>) -> bool {
+        let surl = url.to_string();
+        !visited.insert(surl)
     }
 
     /// match whitelist/blacklist rules

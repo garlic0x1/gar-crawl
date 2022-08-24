@@ -16,6 +16,7 @@ pub struct CrawlerBuilder<'a> {
     pub workers: usize,
     pub blacklist: Vec<String>,
     pub whitelist: Vec<String>,
+    pub revisit: bool,
 }
 
 impl<'a> CrawlerBuilder<'a> {
@@ -28,6 +29,7 @@ impl<'a> CrawlerBuilder<'a> {
             workers: 40,
             whitelist: vec![],
             blacklist: vec![],
+            revisit: false,
         }
     }
 
@@ -51,6 +53,12 @@ impl<'a> CrawlerBuilder<'a> {
     /// set the crawl depth ( default 2 )
     pub fn depth(mut self, depth: usize) -> Self {
         self.depth = depth;
+        self
+    }
+
+    /// revisit pages ( default false )
+    pub fn revisit(mut self, revisit: bool) -> Self {
+        self.revisit = revisit;
         self
     }
 
