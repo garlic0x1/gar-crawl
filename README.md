@@ -27,7 +27,7 @@ Crawler::builder()
     .revisit(true)                                     // default false
     .whitelist("https://example.org")                  // stay on this site
     .user_agent("Mozilla/5.0 (X11; Linux x86_64)...")  // set user agent
-    .proxy("127.0.0.1:8080", "/path/to/cacert.der")    // set up https proxy
+    .proxy("127.0.0.1:8080", "/path/to/cacert.der")?   // set up https proxy
     .add_handler("*[href]", |args| {                   // add handler
         if let Some(href) = args.element.unwrap().value().attr("href") {
             println!("{href}");
