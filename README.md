@@ -20,7 +20,7 @@ Crawler::builder()
     .await?;
 ```  
 
-This example will crawl from https://example.org to a depth of 3, revisiting urls and printing all links found  
+Example with more features used  
 ```rust
 Crawler::builder()
     .add_default_propagators()                         // crawl to href and src links
@@ -33,7 +33,12 @@ Crawler::builder()
             println!("{href}");
         }
     })
+    .on_page(|args| {
+        // do stuff with page
+    })
     .depth(3)                                          // default 2
+    .workers(100)                                      // default 40
+    .timeout(5, 0)                                     // timeout requests after 5 seconds
     .build()?                                          // construct crawler
     .crawl("https://example.org")                      // begin crawl
     .await?;
