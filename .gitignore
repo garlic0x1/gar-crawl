@@ -1,3 +1,5 @@
 /target
 /Cargo.lock
 /examples/cacert.der
+/gar-crawl-cli/Cargo.lock
+/gar-crawl-cli/target
