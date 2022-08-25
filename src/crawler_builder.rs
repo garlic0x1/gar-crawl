@@ -1,3 +1,5 @@
+use crate::absolute_url;
+
 use super::crawler::*;
 use super::handler::*;
 use anyhow::Result;
@@ -170,30 +172,20 @@ impl<'a> CrawlerBuilder<'a> {
     pub fn add_default_propagators(mut self) -> Self {
         let href_prop = |args: &HandlerArgs| -> Vec<Url> {
             if let Some(href) = args.element.unwrap().value().attr("href") {
-                if let Ok(url) = Url::parse(href) {
-                    vec![url]
-                } else if let Ok(url) = args.page.url.join(href) {
-                    vec![url]
-                } else {
-                    vec![]
+                if let Ok(url) = absolute_url(&args.page.url, href) {
+                    return vec![url];
                 }
-            } else {
-                vec![]
             }
+            vec![]
         };
 
         let src_prop = |args: &HandlerArgs| -> Vec<Url> {
             if let Some(href) = args.element.unwrap().value().attr("src") {
-                if let Ok(url) = Url::parse(href) {
-                    vec![url]
-                } else if let Ok(url) = args.page.url.join(href) {
-                    vec![url]
-                } else {
-                    vec![]
+                if let Ok(url) = absolute_url(&args.page.url, href) {
+                    return vec![url];
                 }
-            } else {
-                vec![]
             }
+            vec![]
         };
 
         self = self.add_propagator("*[href]", href_prop);
