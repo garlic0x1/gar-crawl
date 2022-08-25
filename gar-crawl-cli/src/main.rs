@@ -8,31 +8,31 @@ use std::{collections::HashSet, sync::Arc};
 #[clap(author, version, about, long_about = None)]
 #[clap(propagate_version = true)]
 struct Arguments {
-    /// start url
+    /// Start url ( will read lines from stdin if not provided as a flag )
     #[clap(short, long)]
     url: Option<String>,
 
-    /// crawl depth
+    /// Crawl depth
     #[clap(default_value_t = 2, short, long)]
     depth: usize,
 
-    /// concurrency limit
+    /// Concurrency limit
     #[clap(default_value_t = 40, short, long)]
     workers: usize,
 
-    /// request timeout ( seconds )
+    /// Request timeout ( seconds )
     #[clap(default_value_t = 10, short, long)]
     timeout: u64,
 
-    /// revisit urls
+    /// Revisit urls
     #[clap(short, long)]
     revisit: bool,
 
-    /// verbose output
+    /// Verbose output
     #[clap(short, long)]
     verbose: bool,
 
-    /// confine crawl inside given path ( alias of whitelist(url) )
+    /// Confine crawl inside given path ( alias of whitelist(url) )
     #[clap(short, long)]
     confine: bool,
 }

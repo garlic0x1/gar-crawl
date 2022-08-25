@@ -6,10 +6,7 @@ Command line interface for `gar-crawl`.
 gar-crawl-cli 0.1.0
 
 USAGE:
-    gar-crawl-cli [OPTIONS] <URL>
-
-ARGS:
-    <URL>    start url
+    gar-crawl-cli [OPTIONS]
 
 OPTIONS:
     -c, --confine              confine crawl inside given path ( alias of whitelist(url) )
@@ -17,6 +14,7 @@ OPTIONS:
     -h, --help                 Print help information
     -r, --revisit              revisit urls
     -t, --timeout <TIMEOUT>    request timeout ( seconds ) [default: 10]
+    -u, --url <URL>            start url ( will read lines from stdin if not provided as a flag )
     -v, --verbose              verbose output
     -V, --version              Print version information
     -w, --workers <WORKERS>    concurrency limit [default: 40]
