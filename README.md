@@ -44,4 +44,4 @@ Crawler::builder()
     .await?;
 ```  
 
-See `examples/` for more examples
+See `examples/` or `gar-crawl-cli/` for more examples

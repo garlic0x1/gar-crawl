@@ -1,15 +1,16 @@
 use anyhow::Result;
 use clap::Parser;
+use futures::future::join_all;
 use gar_crawl::*;
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 #[clap(propagate_version = true)]
 struct Arguments {
     /// start url
-    #[clap(value_parser)]
-    url: String,
+    #[clap(short, long)]
+    url: Option<String>,
 
     /// crawl depth
     #[clap(default_value_t = 2, short, long)]
@@ -38,9 +39,24 @@ struct Arguments {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = Arguments::parse();
+    let args = Arc::new(Arguments::parse());
+
+    let futures = match &args.url {
+        Some(url) => vec![crawl(args.clone(), url.clone())],
+        None => std::io::stdin()
+            .lines()
+            .flatten()
+            .map(|line| crawl(args.clone(), line))
+            .collect(),
+    };
+
+    join_all(futures).await;
+
+    Ok(())
+}
+
+async fn crawl(args: Arc<Arguments>, url: String) -> Result<()> {
     let mut seen: HashSet<String> = HashSet::new();
-    let mut c = 0;
 
     let mut builder = Crawler::builder()
         .add_default_propagators()
@@ -49,15 +65,14 @@ async fn main() -> Result<()> {
         .workers(args.workers)
         .revisit(args.revisit)
         .on_page(|_args| {
-            c += 1;
             //println!("{}", &args.page.url.as_str());
         })
         .add_handler("*[href]", |args| {
             if let Some(href) = args.element.unwrap().value().attr("href") {
                 if let Ok(abs_url) = absolute_url(&args.page.url, href) {
-                    if seen.insert(abs_url.to_string()) {
-                        println!("{}", abs_url.as_str());
-                    }
+        if seen.insert(abs_url.to_string()) {
+            println!("{}", abs_url.as_str());
+        }
                 }
             }
         })
@@ -65,14 +80,10 @@ async fn main() -> Result<()> {
         .timeout(args.timeout, 0);
 
     if args.confine {
-        builder = builder.whitelist(&args.url);
+        builder = builder.whitelist(&url);
     }
 
-    builder.build()?.crawl(&args.url).await?;
-
-    if args.verbose {
-        println!("visited {c} pages.");
-    }
+    builder.build()?.crawl(&url).await?;
 
     Ok(())
 }
