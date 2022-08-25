@@ -1,7 +1,6 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use clap::Parser;
-use gar_crawl::crawler::*;
-use reqwest::Url;
+use gar_crawl::*;
 use std::collections::HashSet;
 
 #[derive(Parser)]
@@ -76,14 +75,4 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn absolute_url(base_url: &Url, href: &str) -> Result<Url> {
-    if let Ok(abs_url) = Url::parse(href) {
-        Ok(abs_url)
-    } else if let Ok(abs_url) = base_url.join(href) {
-        Ok(abs_url)
-    } else {
-        bail!("Invalid link: {href}")
-    }
 }

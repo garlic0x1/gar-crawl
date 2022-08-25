@@ -1,10 +1,18 @@
+pub mod auxiliary;
 pub mod crawler;
+pub mod crawler_builder;
+pub mod handler;
+
+pub use auxiliary::absolute_url;
+pub use crawler::*;
+pub use crawler_builder::*;
+pub use handler::*;
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
 
-    use super::crawler::*;
+    use super::*;
 
     #[tokio::test]
     async fn crawl_test() {

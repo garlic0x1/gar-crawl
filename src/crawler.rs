@@ -1,5 +1,5 @@
-use super::handler::*;
-use crate::crawler::CrawlerBuilder;
+use crate::auxiliary::*;
+use crate::*;
 use anyhow::{anyhow, bail, Result};
 use async_channel::*;
 use reqwest::{Client, Url};
@@ -118,8 +118,8 @@ impl<'a> Crawler<'a> {
                                 })
                                 .iter()
                                 .filter(|u| {
-                                    Self::is_allowed(u, wl, bl)
-                                        && (revisit || !Self::is_visited(u, &mut visited))
+                                    is_allowed(u, wl, bl)
+                                        && (revisit || !is_visited(u, &mut visited))
                                 })
                                 .for_each(|u| {
                                     queue.push_back((u.clone(), page.depth + 1));
@@ -139,8 +139,7 @@ impl<'a> Crawler<'a> {
                         })
                         .iter()
                         .filter(|u| {
-                            Self::is_allowed(u, wl, bl)
-                                && (revisit || !Self::is_visited(u, &mut visited))
+                            is_allowed(u, wl, bl) && (revisit || !is_visited(u, &mut visited))
                         })
                         .for_each(|u| {
                             queue.push_back((u.clone(), page.depth + 1));
@@ -209,37 +208,6 @@ impl<'a> Crawler<'a> {
                 sender.send(Err(err)).await.unwrap();
                 Err(anyhow!("Failed request"))
             }
-        }
-    }
-
-    /// see if this url has been visited yet
-    fn is_visited(url: &Url, visited: &mut HashSet<String>) -> bool {
-        let surl = url.to_string();
-        !visited.insert(surl)
-    }
-
-    /// match whitelist/blacklist rules
-    fn is_allowed(url: &Url, wl: &Vec<String>, bl: &Vec<String>) -> bool {
-        let surl = url.to_string();
-        if wl
-            .iter()
-            .filter(|expr| surl.contains(expr.as_str()))
-            .take(1)
-            .count()
-            == 0
-            && wl.len() > 0
-        {
-            false
-        } else if bl
-            .iter()
-            .filter(|expr| surl.contains(expr.as_str()))
-            .take(1)
-            .count()
-            != 0
-        {
-            false
-        } else {
-            true
         }
     }
 }
