@@ -1,5 +1,5 @@
 use crate::auxiliary::*;
-use crate::*;
+use crate::crawler::*;
 use anyhow::{anyhow, bail, Result};
 use async_channel::*;
 use reqwest::{Client, Url};
