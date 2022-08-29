@@ -29,10 +29,10 @@ impl<'a> Fuzzer<'a> {
         })
     }
 
-    /// Start crawling at the provided URL and return errors that occur
+    /// Request all urls in provided iterator, handling responses
     pub async fn fuzz(
         &mut self,
-        iter: &mut impl Iterator<Item = &str>,
+        urls: &mut impl Iterator<Item = &str>,
     ) -> Result<Vec<anyhow::Error>> {
         let mut errors = vec![];
 
@@ -42,12 +42,11 @@ impl<'a> Fuzzer<'a> {
         let mut empty = false;
 
         // Loop while the queue is not empty or tasks are fetching pages.
-        // while iter.empty() + tasks > 0 {
         while !empty || tasks > 0 {
             // Limit the number of concurrent tasks.
             while tasks < s.capacity().unwrap() {
                 // Process URLs in the queue and fetch more pages.
-                match iter.next() {
+                match urls.next() {
                     None => {
                         empty = true;
                         break;

@@ -23,7 +23,7 @@ impl<'a> FuzzerBuilder<'a> {
     }
 
     /// Add a handler  
-    /// Closure type: `FnMut(&FuzzHandlerArgs)`  
+    /// Closure type: `FnMut(FuzzHandlerArgs)`  
     pub fn add_handler<F>(mut self, closure: F) -> Self
     where
         F: FnMut(FuzzHandlerArgs) + Send + Sync + 'a,
