@@ -52,7 +52,7 @@ impl<'a> Fuzzer<'a> {
                         break;
                     }
                     Some(url) => {
-                        if let Ok(url) = Url::parse(&url) {
+                        if let Ok(url) = Url::parse(url) {
                             tasks += 1;
                             tokio::spawn(Self::fetch(url, self.client.clone(), s.clone()));
                         }

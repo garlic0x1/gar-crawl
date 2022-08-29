@@ -102,13 +102,13 @@ impl<'a> Crawler<'a> {
     fn do_propagators(&mut self, page: &Page, queue: &mut VecDeque<(Url, usize)>) -> Result<()> {
         let wl = &self.whitelist;
         let bl = &self.blacklist;
-        let mut visited = &mut self.visited;
+        let visited = &mut self.visited;
         let revisit = self.revisit;
 
         for (kind, props) in self.propagators.iter_mut() {
             match kind {
                 HandlerEvent::OnSelector(sel) => {
-                    if let Ok(sel) = Selector::parse(&sel) {
+                    if let Ok(sel) = Selector::parse(sel) {
                         props.iter_mut().for_each(|propagator| {
                             page.doc.select(&sel).for_each(|el| {
                                 propagator(&HandlerArgs {
@@ -118,8 +118,7 @@ impl<'a> Crawler<'a> {
                                 })
                                 .iter()
                                 .filter(|u| {
-                                    is_allowed(u, wl, bl)
-                                        && (revisit || !is_visited(u, &mut visited))
+                                    is_allowed(u, wl, bl) && (revisit || !is_visited(u, visited))
                                 })
                                 .for_each(|u| {
                                     queue.push_back((u.clone(), page.depth + 1));
@@ -138,9 +137,7 @@ impl<'a> Crawler<'a> {
                             client: self.client.clone(),
                         })
                         .iter()
-                        .filter(|u| {
-                            is_allowed(u, wl, bl) && (revisit || !is_visited(u, &mut visited))
-                        })
+                        .filter(|u| is_allowed(u, wl, bl) && (revisit || !is_visited(u, visited)))
                         .for_each(|u| {
                             queue.push_back((u.clone(), page.depth + 1));
                         });

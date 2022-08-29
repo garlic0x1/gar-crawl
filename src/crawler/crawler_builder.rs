@@ -140,7 +140,7 @@ impl<'a> CrawlerBuilder<'a> {
             handlers.push(closure)
         } else {
             self.handlers
-                .insert(HandlerEvent::OnSelector(sel.clone()), vec![closure]);
+                .insert(HandlerEvent::OnSelector(sel), vec![closure]);
         }
         self
     }
