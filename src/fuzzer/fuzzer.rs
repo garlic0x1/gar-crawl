@@ -30,9 +30,9 @@ impl<'a> Fuzzer<'a> {
     }
 
     /// Request all urls in provided iterator, handling responses
-    pub async fn fuzz(
+    pub async fn fuzz<T: ToString>(
         &mut self,
-        urls: &mut impl Iterator<Item = &str>,
+        urls: &mut impl Iterator<Item = T>,
     ) -> Result<Vec<anyhow::Error>> {
         let mut errors = vec![];
 
@@ -52,7 +52,7 @@ impl<'a> Fuzzer<'a> {
                         break;
                     }
                     Some(url) => {
-                        if let Ok(url) = Url::parse(url) {
+                        if let Ok(url) = Url::parse(&url.to_string()) {
                             tasks += 1;
                             tokio::spawn(Self::fetch(url, self.client.clone(), s.clone()));
                         }
