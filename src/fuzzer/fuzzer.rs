@@ -29,8 +29,65 @@ impl<'a> Fuzzer<'a> {
         })
     }
 
+    pub async fn fuzz_post<T: ToString>(
+        &mut self,
+        urls: &mut impl Iterator<Item = T>,
+        data: &mut impl Iterator<Item = T>,
+    ) -> Result<Vec<anyhow::Error>> {
+        let mut iter = urls.zip(data);
+
+        let mut errors = vec![];
+
+        // set up async
+        let (s, r) = bounded(self.workers);
+        let mut tasks = 0;
+        let mut empty = false;
+
+        // Loop while the queue is not empty or tasks are fetching pages.
+        while !empty || tasks > 0 {
+            // Limit the number of concurrent tasks.
+            while tasks < s.capacity().unwrap() {
+                // Process URLs in the queue and fetch more pages.
+                match iter.next() {
+                    None => {
+                        empty = true;
+                        break;
+                    }
+                    Some((url, data)) => {
+                        if let Ok(url) = Url::parse(&url.to_string()) {
+                            tasks += 1;
+                            tokio::spawn(Self::post_data(
+                                url,
+                                data.to_string(),
+                                self.client.clone(),
+                                s.clone(),
+                            ));
+                        }
+                    }
+                }
+            }
+
+            // Recieve a message
+            let fetched = r.recv().await.unwrap();
+            tasks -= 1;
+
+            match fetched {
+                Ok((url, res)) => {
+                    self.do_handlers(&url, &res)?;
+                }
+                Err(err) => {
+                    errors.push(err);
+                }
+            }
+        }
+
+        Ok(errors)
+    }
+
     /// Request all urls in provided iterator, handling responses
-    pub async fn fuzz<T: ToString>(
+    /// If a second iterator is given, POST requests will be made
+    /// with data from that iterator
+    pub async fn fuzz_get<T: ToString>(
         &mut self,
         urls: &mut impl Iterator<Item = T>,
     ) -> Result<Vec<anyhow::Error>> {
@@ -92,6 +149,25 @@ impl<'a> Fuzzer<'a> {
     async fn fetch(url: Url, client: Arc<Client>, sender: Sender<Result<(Url, Response)>>) {
         // Must send a message or die trying
         match client.get(url.clone()).send().await {
+            Ok(res) => {
+                sender.send(Ok((url, res))).await.unwrap();
+            }
+            Err(err) => {
+                let err = anyhow!(err);
+                sender.send(Err(err)).await.unwrap();
+            }
+        }
+    }
+
+    /// make a post request and send the results on the async chan
+    async fn post_data(
+        url: Url,
+        data: String,
+        client: Arc<Client>,
+        sender: Sender<Result<(Url, Response)>>,
+    ) {
+        // Must send a message or die trying
+        match client.post(url.clone()).body(data).send().await {
             Ok(res) => {
                 sender.send(Ok((url, res))).await.unwrap();
             }

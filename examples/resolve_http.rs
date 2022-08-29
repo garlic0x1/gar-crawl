@@ -12,10 +12,9 @@ async fn main() -> Result<()> {
             )
         })
         .build()?
-        .fuzz(&mut std::io::stdin().lines().flatten())
+        .fuzz_get(&mut std::io::stdin().lines().flatten())
         .await;
 
     println!("Errors: {:?}", errs);
-
     Ok(())
 }

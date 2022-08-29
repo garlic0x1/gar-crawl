@@ -23,7 +23,7 @@ mod tests {
             })
             .build()
             .unwrap()
-            .fuzz(&mut iter)
+            .fuzz_get(&mut iter)
             .await
             .unwrap();
 
