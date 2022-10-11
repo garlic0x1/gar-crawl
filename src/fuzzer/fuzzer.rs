@@ -1,8 +1,8 @@
 use crate::fuzzer::*;
 use anyhow::{anyhow, Result};
 use async_channel::*;
-use reqwest::Response;
 use reqwest::{Client, Url};
+use reqwest::{Request, Response};
 use std::sync::Arc;
 
 /// A crawler object, use builder() to build with FuzzerBuilder
@@ -122,8 +122,8 @@ impl<'a> Fuzzer<'a> {
             tasks -= 1;
 
             match fetched {
-                Ok((url, res)) => {
-                    self.do_handlers(&url, &res)?;
+                Ok((req, res)) => {
+                    self.do_handlers(&req, &res)?;
                 }
                 Err(err) => {
                     errors.push(err);
@@ -134,10 +134,10 @@ impl<'a> Fuzzer<'a> {
         Ok(errors)
     }
 
-    fn do_handlers(&mut self, url: &Url, response: &Response) -> Result<()> {
+    fn do_handlers(&mut self, request: &Request, response: &Response) -> Result<()> {
         for handler in self.handlers.iter_mut() {
             handler(FuzzHandlerArgs {
-                url,
+                request,
                 response,
                 client: self.client.clone(),
             });
@@ -146,12 +146,18 @@ impl<'a> Fuzzer<'a> {
     }
 
     /// make a request and send the results on the async chan
-    async fn fetch(url: Url, client: Arc<Client>, sender: Sender<Result<(Url, Response)>>) {
+    async fn fetch(url: Url, client: Arc<Client>, sender: Sender<Result<(Request, Response)>>) {
         // Must send a message or die trying
-        match client.get(url.clone()).send().await {
-            Ok(res) => {
-                sender.send(Ok((url, res))).await.unwrap();
-            }
+        match client.get(url.clone()).build() {
+            Ok(req) => match client.execute(req.try_clone().unwrap()).await {
+                Ok(res) => {
+                    sender.send(Ok((req, res))).await.unwrap();
+                }
+                Err(err) => {
+                    let err = anyhow!(err);
+                    sender.send(Err(err)).await.unwrap();
+                }
+            },
             Err(err) => {
                 let err = anyhow!(err);
                 sender.send(Err(err)).await.unwrap();
@@ -164,13 +170,19 @@ impl<'a> Fuzzer<'a> {
         url: Url,
         data: String,
         client: Arc<Client>,
-        sender: Sender<Result<(Url, Response)>>,
+        sender: Sender<Result<(Request, Response)>>,
     ) {
         // Must send a message or die trying
-        match client.post(url.clone()).body(data).send().await {
-            Ok(res) => {
-                sender.send(Ok((url, res))).await.unwrap();
-            }
+        match client.post(url.clone()).body(data).build() {
+            Ok(req) => match client.execute(req.try_clone().unwrap()).await {
+                Ok(res) => {
+                    sender.send(Ok((req, res))).await.unwrap();
+                }
+                Err(err) => {
+                    let err = anyhow!(err);
+                    sender.send(Err(err)).await.unwrap();
+                }
+            },
             Err(err) => {
                 let err = anyhow!(err);
                 sender.send(Err(err)).await.unwrap();

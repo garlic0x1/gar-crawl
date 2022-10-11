@@ -8,7 +8,7 @@ async fn main() -> Result<()> {
             println!(
                 "status: {} url: {}",
                 args.response.status(),
-                args.url.as_str()
+                args.request.url().as_str()
             )
         })
         .build()?

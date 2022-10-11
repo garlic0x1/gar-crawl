@@ -18,7 +18,7 @@ mod tests {
         let errs = Fuzzer::builder()
             .add_handler(|args| {
                 responses += 1;
-                println!("{}", args.url.as_str());
+                println!("{}", args.request.url().as_str());
                 println!("{:?}", args.response.status())
             })
             .build()

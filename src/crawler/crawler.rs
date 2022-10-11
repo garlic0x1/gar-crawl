@@ -1,3 +1,4 @@
+// use super::courier;
 use crate::auxiliary::*;
 use crate::crawler::*;
 use anyhow::{anyhow, bail, Result};
@@ -65,7 +66,7 @@ impl<'a> Crawler<'a> {
                     None => break,
                     Some(url) => {
                         tasks += 1;
-                        tokio::spawn(Self::fetch(url.0, url.1, self.client.clone(), s.clone()));
+                        tokio::spawn(courier::fetch(url.0, url.1, self.client.clone(), s.clone()));
                     }
                 }
             }
@@ -178,33 +179,5 @@ impl<'a> Crawler<'a> {
             }
         }
         Ok(())
-    }
-
-    /// make a request and send the results on the async chan
-    async fn fetch(
-        url: Url,
-        depth: usize,
-        client: Arc<Client>,
-        sender: Sender<Result<(Url, String, usize)>>,
-    ) -> Result<()> {
-        // Must send a message or die trying
-        match client.get(url.clone()).send().await {
-            Ok(res) => match res.text().await {
-                Ok(text) => {
-                    sender.send(Ok((url, text, depth))).await.unwrap();
-                    Ok(())
-                }
-                Err(err) => {
-                    let err = anyhow!(err);
-                    sender.send(Err(err)).await.unwrap();
-                    Err(anyhow!("Failed read"))
-                }
-            },
-            Err(err) => {
-                let err = anyhow!(err);
-                sender.send(Err(err)).await.unwrap();
-                Err(anyhow!("Failed request"))
-            }
-        }
     }
 }
