@@ -1,4 +1,4 @@
-pub mod courier;
+mod courier;
 pub mod crawler;
 pub mod crawler_builder;
 pub mod handler;

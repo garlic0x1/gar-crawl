@@ -1,7 +1,8 @@
 // use super::courier;
+
 use crate::auxiliary::*;
 use crate::crawler::*;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use async_channel::*;
 use reqwest::{Client, Url};
 use scraper::{Html, Selector};

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use async_channel::*;
 use reqwest::{Client, Url};
 use std::sync::Arc;
